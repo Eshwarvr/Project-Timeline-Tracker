@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Add Milestone - {{ project.project_name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="mb-2"><i class="bi bi-plus-circle"></i> Add New Milestone</h1>
+                <p class="text-muted mb-0">
+                    <i class="bi bi-folder"></i> Project: <strong>{{ project.project_name }}</strong>
+                </p>
+            </div>
+            <div>
+                <a href="/project/{{ project.id }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back To Project
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-flag"></i> Milestone Information</h5>
+            </div>
+            <div class="card-body">
+                <!-- ✅ ERROR MESSAGE DISPLAY -->
+                {% if error %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-circle"></i> <strong>Validation Error:</strong> {{ error }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endif %}
+
+                <form method="POST" action="/add-milestone/{{ project.id }}">
+                    <div class="mb-3">
+                        <label for="milestonename" class="form-label">
+                            <i class="bi bi-flag-fill"></i> Milestone Name
+                        </label>
+                        <input type="text" class="form-control" id="milestonename" 
+                               name="milestonename" placeholder="Enter Milestone Name" required>
+                    </div>
+
+                    <!-- ✅ SHOW PROJECT DATE RANGE INFORMATION -->
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-calendar-range"></i> <strong>Project Date Range:</strong> 
+                        {{ project.start_date|ddmmyyyy }} To {{ project.end_date|ddmmyyyy }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="startdate" class="form-label">
+                                <i class="bi bi-calendar-check"></i> Start Date
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="startdate" name="startdate" class="form-control"
+                                placeholder="DD-MM-YYYY" 
+                                pattern="\d{2}-\d{2}-\d{4}" 
+                                title="Enter date in DD-MM-YYYY format"
+                                required>
+                            <small class="text-muted">Must Be Within Project Date Range</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="enddate" class="form-label">
+                                <i class="bi bi-calendar-x"></i> End Date
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" id="enddate" name="enddate" class="form-control"
+                                placeholder="DD-MM-YYYY" 
+                                pattern="\d{2}-\d{2}-\d{4}" 
+                                title="Enter date in DD-MM-YYYY format"
+                                required>
+                            <small class="text-muted">Must Be Within Project Date Range</small>
+                        </div>
+                    </div>
+
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="status" class="form-label">
+                                <i class="bi bi-info-circle"></i> Status
+                            </label>
+                            <select class="form-select" id="status" name="status" required>
+                                <option value="In Progress" selected>In Progress</option>
+                                <option value="Completed">Completed</option>
+                            </select>
+                        </div>
+                        
+                        <!-- PRIORITY DROPDOWN -->
+                        <div class="col-md-6 mb-3">
+                            <label for="priority" class="form-label">
+                                <i class="bi bi-flag-fill"></i> Priority Level
+                            </label>
+                            <select class="form-select" id="priority" name="priority" required>
+                                <option value="Low">🟢 Low Priority</option>
+                                <option value="Medium" selected>🟡 Medium Priority</option>
+                                <option value="High">🔴 High Priority</option>
+                            </select>
+                        </div>
+                    </div>
+
+
+                    <hr class="my-4">
+
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="/project/{{ project.id }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Create Milestone
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="col-lg-4">
+        <div class="card shadow border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Project Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong><i class="bi bi-briefcase"></i> Project Name:</strong>
+                    <p class="text-muted mb-0">{{ project.project_name }}</p>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <strong><i class="bi bi-person-circle"></i> Client:</strong>
+                    <p class="text-muted mb-0">{{ project.client_name }}</p>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <strong><i class="bi bi-calendar-range"></i> Project Duration:</strong>
+                    <p class="text-muted mb-0">
+                        {{ project.start_date|ddmmyyyy }}<br>
+                        To<br>
+                        {{ project.end_date|ddmmyyyy }}
+                    </p>
+                </div>
+                <hr>
+                <div class="mb-0">
+                    <strong><i class="bi bi-flag"></i> Status:</strong><br>
+                    {% if project.status == "Completed" %}
+                        <span class="badge bg-success mt-1">Completed</span>
+                    {% elif project.status == "Overdue" %}
+                        <span class="badge bg-danger mt-1">Overdue</span>
+                    {% elif project.status == "In Progress" %}
+                        <span class="badge bg-warning text-dark mt-1">In Progress</span>
+                    {% else %}
+                        <span class="badge bg-secondary mt-1">Not Started</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+
+        <div class="card shadow border-warning mt-3">
+            <div class="card-header bg-warning">
+                <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li>Choose Clear, Descriptive Milestone Names</li>
+                    <li>Ensure Dates Fall Within Project Timeline</li>
+                    <li>Set Priority Based On Importance</li>
+                    <li>Set Realistic Completion Dates</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ✅ JAVASCRIPT FOR REAL-TIME DATE VALIDATION -->
+<script>
+document.getElementById('startdate').addEventListener('change', function() {
+    const projectStart = document.getElementById('startdate').min;
+    const projectEnd = document.getElementById('enddate').max;
+    const endDateInput = document.getElementById('enddate');
+    const startDate = new Date(this.value);
+    const endDate = new Date(endDateInput.value);
+    
+    // Auto-set end date if it's before start date
+    if (startDate > endDate && endDateInput.value) {
+        endDateInput.value = this.value;
+        endDateInput.min = this.value;
+    } else {
+        endDateInput.min = this.value;
+    }
+});
+
+document.getElementById('enddate').addEventListener('change', function() {
+    const startDateInput = document.getElementById('startdate');
+    const startDate = new Date(startDateInput.value);
+    const endDate = new Date(this.value);
+    
+    // Alert if end date is before start date
+    if (endDate < startDate) {
+        showValidationModal('End date cannot be before start date');
+        this.value = '';
+    }
+});
+</script>
+<script>
+$(document).ready(function() {
+    function toTitleCase(str) {
+        return str.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+    }
+    
+    // Auto-convert milestone name to title case
+    $('#milestonename').on('blur', function() {
+        $(this).val(toTitleCase($(this).val()));
+    });
+});
+</script>
+{% endblock %}

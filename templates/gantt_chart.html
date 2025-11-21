@@ -1,0 +1,979 @@
+{% extends "base.html" %}
+
+{% block title %}Gantt Chart - Timeline Tracker{% endblock %}
+
+{% block extra_css %}
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .gantt-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background-color: #f5f5f5;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow: hidden;
+    }
+
+    .gantt-header {
+        padding: 20px;
+        background-color: white;
+        border-bottom: 2px solid #e0e0e0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .gantt-header h1 {
+        font-size: 28px;
+        color: #2c3e50;
+        margin-bottom: 15px;
+    }
+
+    .gantt-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .stat-card.projects {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .stat-card.milestones {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        opacity: 0.9;
+        margin-top: 5px;
+    }
+
+    /* Month Selector */
+    .month-selector {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 0;
+        padding: 12px 20px;
+        background: white;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .month-selector label {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .month-selector select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        background: white;
+        color: #333;
+    }
+
+    .month-selector select:hover {
+        border-color: #667eea;
+    }
+
+    /* Month Group Selector for Monthly View */
+    .month-group-selector {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 12px 20px;
+        background: white;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .month-group-selector label {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .month-group-selector select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        background: white;
+        color: #333;
+    }
+
+    .month-group-selector select:hover {
+        border-color: #667eea;
+    }
+
+    /* Tab Navigation */
+    .tab-container {
+        display: flex;
+        gap: 0;
+        border-bottom: 2px solid #e0e0e0;
+        background: white;
+        padding: 0 20px;
+    }
+
+    .tab-button {
+        padding: 16px 40px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        font-size: 18px;
+        font-weight: 600;
+        color: #666;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s ease;
+        margin-bottom: -2px;
+    }
+
+    .tab-button:hover {
+        color: #2c3e50;
+    }
+
+    .tab-button.active {
+        color: #667eea;
+        border-bottom-color: #667eea;
+    }
+
+    .tab-content {
+        display: none;
+        flex: 1;
+        overflow: auto;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .tab-content.active {
+        display: flex;
+        min-height: 100%;
+    }
+
+    /* Gantt Content Area */
+    .gantt-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: white;
+        overflow: auto;
+        height: 100%;
+    }
+
+    .gantt-chart-wrapper {
+        flex: 1;
+        position: relative;
+        height: 100%;
+    }
+
+    .gantt-full-view {
+        flex: 1;
+        position: relative;
+        height: 100%;
+    }
+
+    /* Today Line - Only in chart area */
+    .today-line {
+        position: absolute;
+        width: 2px;
+        height: calc(100% - 80px);
+        background: #ff6b6b;
+        z-index: 5;
+        top: 80px;
+    }
+
+    .today-label {
+        position: absolute;
+        top: 85px;
+        background: #ff6b6b;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 600;
+        white-space: nowrap;
+        z-index: 6;
+    }
+
+    /* Header Row */
+    .gantt-header-row {
+        display: flex;
+        background: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        padding: 0;
+        min-height: 80px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .gantt-header-cell-name {
+        min-width: 250px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        font-weight: 600;
+        color: #2c3e50;
+        border-right: 2px solid #0d6efd;
+        text-align: left;
+    }
+
+    .gantt-header-cells {
+        display: flex;
+        flex: 1;
+    }
+
+    .gantt-header-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 12px;
+        font-weight: 600;
+        color: #2c3e50;
+        border-right: 1px solid #dee2e6;
+        flex: 1;
+        font-size: 11px;
+        text-align: center;
+        flex-shrink: 0;
+        min-width: 100px;
+    }
+
+    .gantt-header-cell.current-month {
+        background-color: #fff3cd;
+    }
+
+    .period-label {
+        font-weight: bold;
+        color: #667eea;
+        line-height: 1.3;
+    }
+
+    .date-label {
+        font-size: 9px;
+        color: #999;
+        margin-top: 2px;
+    }
+
+    /* Data Row */
+    .gantt-row {
+        display: flex;
+        border-bottom: 1px solid #eee;
+        min-height: 50px;
+        background: white;
+        position: relative;
+    }
+
+    .gantt-row:hover {
+        background-color: #f9f9f9;
+    }
+
+    .gantt-row.milestone {
+        background: #f0f7ff;
+    }
+
+    .gantt-row.milestone:hover {
+        background-color: #e6f2ff;
+    }
+
+    .gantt-cell-name {
+        min-width: 250px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        font-size: 13px;
+        color: #333;
+        border-right: 2px solid #0d6efd;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .gantt-row.milestone .gantt-cell-name {
+        color: #667eea;
+        padding-left: 30px;
+    }
+
+    .gantt-cells {
+        display: flex;
+        flex: 1;
+        position: relative;
+        align-items: center;
+        background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+    }
+
+    /* Continuous Bar */
+    .gantt-bar-continuous {
+        position: absolute;
+        height: 28px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 11px;
+        font-weight: 600;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        overflow: visible;
+    }
+
+    .gantt-bar-continuous:hover {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        transform: translateY(calc(-50% - 2px));
+    }
+
+    .gantt-bar-continuous.completed {
+        background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+    }
+
+    .gantt-bar-continuous.overdue {
+        background: linear-gradient(90deg, #dc3545 0%, #e74c3c 100%);
+    }
+
+    .gantt-bar-continuous.not-started {
+        background: linear-gradient(90deg, #2196f3 0%, #1565c0 100%);
+    }
+
+    .gantt-bar-continuous.in-progress {
+        background: linear-gradient(90deg, #ffc107 0%, #ff9800 100%);
+    }
+
+    .bar-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 0 6px;
+    }
+
+    /* Date Labels */
+    .bar-date-label {
+        font-size: 7px;
+        opacity: 0.95;
+        font-weight: 500;
+        white-space: nowrap;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 1px 3px;
+        border-radius: 2px;
+        position: absolute;
+    }
+
+    .bar-date-start {
+        top: -14px;
+        left: 2px;
+    }
+
+    .bar-date-end {
+        top: -14px;
+        right: 2px;
+    }
+
+    /* Small Bar - Dates Outside */
+    .gantt-bar-continuous.small-bar .bar-date-start {
+        left: auto;
+        right: 100%;
+        margin-right: 6px;
+        background: transparent;
+        top: -10px;
+        color: #333;
+        font-weight: 600;
+    }
+
+    .gantt-bar-continuous.small-bar .bar-date-end {
+        right: auto;
+        left: 100%;
+        margin-left: 6px;
+        background: transparent;
+        top: -10px;
+        color: #333;
+        font-weight: 600;
+    }
+
+    /* Extends Label */
+    .extends-label {
+        font-size: 8px;
+        color: #ff6b6b;
+        font-weight: 700;
+        background: rgba(255, 107, 107, 0.1);
+        padding: 1px 3px;
+        border-radius: 2px;
+        margin-top: 2px;
+    }
+
+    /* Month Info */
+    .month-info {
+        font-size: 7px;
+        color: #667eea;
+        font-weight: 600;
+        background: rgba(102, 126, 234, 0.1);
+        padding: 1px 3px;
+        border-radius: 2px;
+        margin-top: 1px;
+        white-space: nowrap;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        margin-left: 8px;
+    }
+
+    .status-badge.completed {
+        background-color: #d4edda;
+        color: #155724;
+    }
+
+    .status-badge.in-progress {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+
+    .status-badge.not-started {
+        background-color: #e2e3e5;
+        color: #383d41;
+    }
+
+    .status-badge.overdue {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+
+    /* Legend */
+    .gantt-legend {
+        padding: 15px 20px;
+        background: white;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .gantt-legend h3 {
+        font-size: 12px;
+        margin-bottom: 10px;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .legend-items {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+    }
+
+    .legend-color {
+        width: 24px;
+        height: 16px;
+        border-radius: 3px;
+        flex-shrink: 0;
+    }
+
+    .legend-color.completed {
+        background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+    }
+
+    .legend-color.in-progress {
+        background: linear-gradient(90deg, #2196f3 0%, #1565c0 100%);
+    }
+
+    .legend-color.not-started {
+        background: linear-gradient(90deg, #9e9e9e 0%, #757575 100%);
+        opacity: 0.6;
+    }
+
+    .legend-color.overdue {
+        background: linear-gradient(90deg, #dc3545 0%, #e74c3c 100%);
+    }
+
+    .empty-state {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        height: 400px;
+        color: #999;
+        gap: 10px;
+    }
+
+    .empty-state-icon {
+        font-size: 48px;
+        opacity: 0.3;
+    }
+
+    .empty-state-text {
+        font-size: 16px;
+        font-weight: 500;
+    }
+
+    /* Collapsible */
+    .project-name {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-left: 10px;
+    }
+
+    .project-row .project-name::before {
+        content: '▶';
+        position: absolute;
+        left: 8px;
+        transition: transform 0.3s ease;
+        font-size: 12px;
+        color: #667eea;
+    }
+
+    .project-row .project-name.expanded::before {
+        transform: rotate(90deg);
+    }
+
+    .milestone-row {
+        display: none !important;
+    }
+
+    .milestone-row.show {
+        display: flex !important;
+    }
+
+    @media (max-width: 768px) {
+        .gantt-cell-name {
+            min-width: 120px;
+            font-size: 12px;
+        }
+
+        .gantt-header-cell-name {
+            min-width: 120px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gantt-container">
+    <!-- Header Section -->
+    <div class="gantt-header">
+        <h1>📊 Project Gantt Chart</h1>
+        <div class="gantt-stats">
+            <div class="stat-card projects">
+                <div class="stat-number">{{ projects|length }}</div>
+                <div class="stat-label">Total Projects</div>
+            </div>
+            <div class="stat-card milestones">
+                <div class="stat-number">{{ total_milestones }}</div>
+                <div class="stat-label">Total Milestones</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-container">
+        <button class="tab-button active" onclick="switchTab('weekly')">
+            📅 Weekly View
+        </button>
+        <button class="tab-button" onclick="switchTab('monthly')">
+            📆 Monthly View
+        </button>
+    </div>
+
+    <!-- Weekly View Tab -->
+    <div id="weekly" class="tab-content active">
+        <!-- Month Selector for Weekly View -->
+        <div class="month-selector">
+            <label for="week-month-select">Select Month:</label>
+            <select id="week-month-select" onchange="changeWeeklyMonth()">
+                {% for m in range(1, 13) %}
+                    {% set month_date = today.replace(month=m, day=1) %}
+                    <option value="{{ m }}" {% if m == today.month %}selected{% endif %}>
+                        {{ month_date.strftime('%B %Y') }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="gantt-content">
+            <div class="gantt-chart-wrapper">
+                <div id="weekly-view"></div>
+            </div>
+            <div class="gantt-legend">
+                <h3>Legend</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <div class="legend-color completed"></div>
+                        <span>Completed</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color in-progress"></div>
+                        <span>In Progress</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color not-started"></div>
+                        <span>Not Started</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color overdue"></div>
+                        <span>Overdue</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly View Tab -->
+    <div id="monthly" class="tab-content">
+        <!-- Month Group Selector for Monthly View -->
+        <div class="month-group-selector">
+            <label for="month-group-select">Select Month Range:</label>
+            <select id="month-group-select" onchange="renderMonthlyView()">
+                <option value="0">Jan - Mar</option>
+                <option value="1">Apr - Jun</option>
+                <option value="2">Jul - Sep</option>
+                <option value="3">Oct - Dec</option>
+            </select>
+        </div>
+
+        <div class="gantt-content">
+            <div class="gantt-chart-wrapper">
+                <div id="monthly-view"></div>
+            </div>
+            <div class="gantt-legend">
+                <h3>Legend</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <div class="legend-color completed"></div>
+                        <span>Completed</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color in-progress"></div>
+                        <span>In Progress</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color not-started"></div>
+                        <span>Not Started</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color overdue"></div>
+                        <span>Overdue</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const projectsData = {{ projects|tojson }};
+    const todayDate = new Date('{{ today }}');
+
+    // Month groups: 4 sets of 3 consecutive months
+    const monthGroups = [
+        { name: 'Jan - Mar', months: [0, 1, 2] },      // January, February, March
+        { name: 'Apr - Jun', months: [3, 4, 5] },      // April, May, June
+        { name: 'Jul - Sep', months: [6, 7, 8] },      // July, August, September
+        { name: 'Oct - Dec', months: [9, 10, 11] }     // October, November, December
+    ];
+
+    // Get last day of month
+    function getLastDayOfMonth(year, month) {
+        return new Date(year, month, 0).getDate();
+    }
+
+    function renderWeeklyView(monthNum) {
+        const monthDate = new Date(todayDate.getFullYear(), monthNum - 1, 1);
+        const monthEnd = new Date(todayDate.getFullYear(), monthNum, 0);
+        const week1Start = monthDate;
+        const week4End = monthEnd;
+        const totalDays = Math.ceil((week4End - week1Start) / (1000 * 60 * 60 * 24)) + 1;
+
+        let html = '';
+        html += `<div class="gantt-full-view" style="position: relative;">`;
+
+        // TODAY LINE - only if today is in this month
+        if (todayDate.getMonth() === monthDate.getMonth() && todayDate.getFullYear() === monthDate.getFullYear()) {
+            const todayOffset = Math.ceil((todayDate - week1Start) / (1000 * 60 * 60 * 24));
+            const todayPercent = (todayOffset / totalDays) * 100;
+            if (todayPercent >= 0 && todayPercent <= 100) {
+                html += `<div class="today-line" style="left: calc(250px + (${todayPercent} / 100) * (100% - 250px));"></div>`;
+                html += `<div class="today-label" style="left: calc(250px + (${todayPercent} / 100) * (100% - 250px) - 25px);">TODAY</div>`;
+            }
+        }
+
+        // HEADER
+        html += `<div class="gantt-header-row">`;
+        html += `<div class="gantt-header-cell-name">Project / Milestone</div>`;
+        html += `<div class="gantt-header-cells">`;
+        for (let w = 1; w <= 4; w++) {
+            const wStart = new Date(week1Start);
+            wStart.setDate(wStart.getDate() + (w - 1) * 7);
+            const wEnd = new Date(wStart);
+            wEnd.setDate(Math.min(wEnd.getDate() + 6, monthEnd.getDate()));
+            
+            html += `<div class="gantt-header-cell">
+                <div class="period-label">Week ${w}</div>
+                <div class="date-label">${wStart.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit'})} - ${wEnd.toLocaleDateString('en-US', {month: '2-digit', day: '2-digit'})}</div>
+            </div>`;
+        }
+        html += `</div></div>`;
+
+        // PROJECTS & MILESTONES
+        projectsData.forEach((project, pIdx) => {
+            const projectStartDate = new Date(project.start_date);
+            const projectEndDate = new Date(project.end_date);
+
+            // Filter milestones for this month
+            const monthMilestones = project.milestones.filter(m => {
+                const mStart = new Date(m.start_date);
+                const mEnd = new Date(m.end_date);
+                return (mStart <= week4End && mEnd >= week1Start);
+            });
+
+            // Show project if it has milestones in this month
+            if (monthMilestones.length > 0) {
+                // PROJECT ROW
+                const displayStart = projectStartDate < week1Start ? week1Start : projectStartDate;
+                const displayEnd = projectEndDate > week4End ? week4End : projectEndDate;
+                const daysOffset = Math.ceil((displayStart - week1Start) / (1000 * 60 * 60 * 24));
+                const barWidthDays = Math.ceil((displayEnd - displayStart) / (1000 * 60 * 60 * 24)) + 1;
+                const barLeftPercent = (daysOffset / totalDays) * 100;
+                const barWidthPercent = (barWidthDays / totalDays) * 100;
+                const isSmall = barWidthPercent < 8;
+                const extendsMonth = projectEndDate > week4End;
+                const inThisMonth = projectEndDate.getMonth() === monthDate.getMonth();
+
+                html += `<div class="gantt-row project-row" data-project-id="${pIdx}" onclick="toggleMilestones(${pIdx})">
+                    <div class="gantt-cell-name project-name" id="project-${pIdx}">
+                        📁 ${project.project_name}
+                        <span class="status-badge ${project.status.toLowerCase().replace(' ', '-')}">
+                            ${project.status}
+                        </span>
+                    </div>
+                    <div class="gantt-cells">
+                        <div style="position: relative; width: 100%; height: 100%;">
+                            <div class="gantt-bar-continuous ${project.status.toLowerCase().replace(' ', '-')}${isSmall ? ' small-bar' : ''}" 
+                                style="left: calc(${barLeftPercent}%); width: calc(${barWidthPercent}%); min-width: 40px;">
+                                <div class="bar-date-label bar-date-start">${new Date(project.start_date).toLocaleDateString('en-US', {month: 'short', day: '2-digit'})}</div>
+                                <div class="bar-content">
+                                    <span class="bar-percentage">${project.completion_percentage}%</span>
+                                    ${inThisMonth ? '<div class="month-info">📅 This Month</div>' : ''}
+                                    ${extendsMonth ? '<div class="extends-label">⏹ Extends</div>' : ''}
+                                </div>
+                                <div class="bar-date-label bar-date-end">${new Date(project.end_date).toLocaleDateString('en-US', {month: 'short', day: '2-digit'})}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+                // MILESTONE ROWS
+                monthMilestones.forEach((milestone) => {
+                    const mStart = new Date(milestone.start_date);
+                    const mEnd = new Date(milestone.end_date);
+                    const mDisplayStart = mStart < week1Start ? week1Start : mStart;
+                    const mDisplayEnd = mEnd > week4End ? week4End : mEnd;
+                    const mDaysOffset = Math.ceil((mDisplayStart - week1Start) / (1000 * 60 * 60 * 24));
+                    const mBarWidthDays = Math.ceil((mDisplayEnd - mDisplayStart) / (1000 * 60 * 60 * 24)) + 1;
+                    const mBarLeftPercent = (mDaysOffset / totalDays) * 100;
+                    const mBarWidthPercent = (mBarWidthDays / totalDays) * 100;
+                    const mIsSmall = mBarWidthPercent < 8;
+                    const mExtends = mEnd > week4End;
+                    const mInMonth = mEnd.getMonth() === monthDate.getMonth();
+
+                    html += `<div class="gantt-row milestone milestone-row" data-parent-project="${pIdx}">
+                        <div class="gantt-cell-name">
+                            ${milestone.milestone_name}
+                            <span class="status-badge ${milestone.status.toLowerCase().replace(' ', '-')}">
+                                ${milestone.status}
+                            </span>
+                        </div>
+                        <div class="gantt-cells">
+                            <div style="position: relative; width: 100%; height: 100%;">
+                                <div class="gantt-bar-continuous ${milestone.status.toLowerCase().replace(' ', '-')}${mIsSmall ? ' small-bar' : ''}"
+                                    style="left: calc(${mBarLeftPercent}%); width: calc(${mBarWidthPercent}%); min-width: 40px;">
+                                    <div class="bar-date-label bar-date-start">${mStart.toLocaleDateString('en-US', {month: 'short', day: '2-digit'})}</div>
+                                    <div class="bar-content">
+                                        <span class="bar-percentage">${milestone.priority}</span>
+                                        ${mInMonth ? '<div class="month-info">📅 This Month</div>' : ''}
+                                        ${mExtends ? '<div class="extends-label">⏹ Extends</div>' : ''}
+                                    </div>
+                                    <div class="bar-date-label bar-date-end">${mEnd.toLocaleDateString('en-US', {month: 'short', day: '2-digit'})}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+            }
+        });
+
+        html += `</div>`;
+        document.getElementById('weekly-view').innerHTML = html;
+    }
+
+    function renderMonthlyView() {
+        const groupIdx = parseInt(document.getElementById('month-group-select').value);
+        const selectedMonthIndices = monthGroups[groupIdx].months;
+        const currentYear = todayDate.getFullYear();
+        
+        // Calculate range for the selected 3 months
+        const rangeStart = new Date(currentYear, selectedMonthIndices[0], 1);
+        const rangeEnd = new Date(currentYear, selectedMonthIndices[2] + 1, 0);
+        const totalDays = Math.ceil((rangeEnd - rangeStart) / (1000 * 60 * 60 * 24)) + 1;
+
+        let html = '';
+        html += `<div class="gantt-full-view" style="position: relative;">`;
+
+        // HEADER ROW with only 3 months
+        html += `<div class="gantt-header-row">`;
+        html += `<div class="gantt-header-cell-name">Project / Milestone</div>`;
+        html += `<div class="gantt-header-cells">`;
+        for (const monthIdx of selectedMonthIndices) {
+            const monthDate = new Date(currentYear, monthIdx, 1);
+            const isCurrentMonth = monthIdx === todayDate.getMonth() && currentYear === todayDate.getFullYear();
+            html += `<div class="gantt-header-cell ${isCurrentMonth ? 'current-month' : ''}">
+                <div class="period-label">${monthDate.toLocaleDateString('en-US', {month: 'short'})}</div>
+                <div class="date-label">${monthDate.toLocaleDateString('en-US', {year: 'numeric'})}</div>
+            </div>`;
+        }
+        html += `</div></div>`;
+
+        // PROJECTS & MILESTONES
+        projectsData.forEach((project, pIdx) => {
+            const projectStart = new Date(project.start_date);
+            const projectEnd = new Date(project.end_date);
+
+            // Check if project overlaps with selected range
+            if (!(projectEnd < rangeStart || projectStart > rangeEnd)) {
+                const displayStart = projectStart < rangeStart ? rangeStart : projectStart;
+                const displayEnd = projectEnd > rangeEnd ? rangeEnd : projectEnd;
+                const daysOffset = Math.ceil((displayStart - rangeStart) / (1000 * 60 * 60 * 24));
+                const barWidthDays = Math.ceil((displayEnd - displayStart) / (1000 * 60 * 60 * 24)) + 1;
+                const barLeftPercent = (daysOffset / totalDays) * 100;
+                const barWidthPercent = (barWidthDays / totalDays) * 100;
+                const isSmall = barWidthPercent < 10;
+
+                // PROJECT ROW
+                html += `<div class="gantt-row project-row" data-project-id="${pIdx}" onclick="toggleMilestones(${pIdx})">
+                    <div class="gantt-cell-name project-name" id="project-${pIdx}">
+                        📁 ${project.project_name}
+                        <span class="status-badge ${project.status.toLowerCase().replace(' ', '-')}">
+                            ${project.status}
+                        </span>
+                    </div>
+                    <div class="gantt-cells">
+                        <div style="position: relative; width: 100%; height: 100%;">
+                            <div class="gantt-bar-continuous ${project.status.toLowerCase().replace(' ', '-')}${isSmall ? ' small-bar' : ''}"
+                                style="left: calc(${barLeftPercent}%); width: calc(${barWidthPercent}%); min-width: 50px;">
+                                <div class="bar-date-label bar-date-start">${projectStart.toLocaleDateString('en-US', {month: 'short', day: '2-digit'})}</div>
+                                <div class="bar-content">
+                                    <span class="bar-percentage">${project.completion_percentage}%</span>
+                                </div>
+                                <div class="bar-date-label bar-date-end">${projectEnd.toLocaleDateString('en-US', {month: 'short', day: '2-digit'})}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+                // MILESTONE ROWS
+                project.milestones.forEach((milestone) => {
+                    const mStart = new Date(milestone.start_date);
+                    const mEnd = new Date(milestone.end_date);
+
+                    // Check if milestone overlaps with selected range
+                    if (!(mEnd < rangeStart || mStart > rangeEnd)) {
+                        const mDisplayStart = mStart < rangeStart ? rangeStart : mStart;
+                        const mDisplayEnd = mEnd > rangeEnd ? rangeEnd : mEnd;
+                        const mDaysOffset = Math.ceil((mDisplayStart - rangeStart) / (1000 * 60 * 60 * 24));
+                        const mBarWidthDays = Math.ceil((mDisplayEnd - mDisplayStart) / (1000 * 60 * 60 * 24)) + 1;
+                        const mBarLeftPercent = (mDaysOffset / totalDays) * 100;
+                        const mBarWidthPercent = (mBarWidthDays / totalDays) * 100;
+                        const mIsSmall = mBarWidthPercent < 10;
+
+                        html += `<div class="gantt-row milestone milestone-row" data-parent-project="${pIdx}">
+                            <div class="gantt-cell-name">
+                                ${milestone.milestone_name}
+                                <span class="status-badge ${milestone.status.toLowerCase().replace(' ', '-')}">
+                                    ${milestone.status}
+                                </span>
+                            </div>
+                            <div class="gantt-cells">
+                                <div style="position: relative; width: 100%; height: 100%;">
+                                    <div class="gantt-bar-continuous ${milestone.status.toLowerCase().replace(' ', '-')}${mIsSmall ? ' small-bar' : ''}"
+                                        style="left: calc(${mBarLeftPercent}%); width: calc(${mBarWidthPercent}%); min-width: 50px;">
+                                        <div class="bar-date-label bar-date-start">${mStart.toLocaleDateString('en-US', {month: 'short', day: '2-digit'})}</div>
+                                        <div class="bar-content">
+                                            <span class="bar-percentage">${milestone.priority}</span>
+                                        </div>
+                                        <div class="bar-date-label bar-date-end">${mEnd.toLocaleDateString('en-US', {month: 'short', day: '2-digit'})}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                });
+            }
+        });
+
+        html += `</div>`;
+        document.getElementById('monthly-view').innerHTML = html;
+    }
+
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        event.target.classList.add('active');
+
+        if (tabName === 'monthly') {
+            renderMonthlyView();
+        }
+    }
+
+    function changeWeeklyMonth() {
+        const monthNum = parseInt(document.getElementById('week-month-select').value);
+        renderWeeklyView(monthNum);
+    }
+
+    function toggleMilestones(projectId) {
+        const projectElement = document.getElementById('project-' + projectId);
+        projectElement.classList.toggle('expanded');
+        
+        document.querySelectorAll(`.milestone-row[data-parent-project="${projectId}"]`).forEach(row => {
+            row.classList.toggle('show');
+        });
+    }
+
+    // Initial render
+    renderWeeklyView(todayDate.getMonth() + 1);
+</script>
+{% endblock %}

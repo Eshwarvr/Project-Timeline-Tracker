@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Timeline Tracker{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Chart.js for charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f5f5f5;
+        }
+
+        /* ===== NAVBAR STYLING ===== */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            padding: 0 !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .navbar-brand {
+            font-size: 22px !important;
+            font-weight: 700 !important;
+            color: white !important;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+
+        .navbar-brand:hover {
+            opacity: 0.9;
+        }
+
+        .navbar-toggler {
+            border-color: rgba(255, 255, 255, 0.5) !important;
+        }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+        }
+
+        .navbar-nav {
+            gap: 0;
+        }
+
+        .navbar-nav .nav-link {
+            color: white !important;
+            font-weight: 600;
+            padding: 25px 18px !important;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+
+        .navbar-nav .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-bottom-color: white;
+        }
+
+        .navbar-nav .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.15) !important;
+            border-bottom-color: white;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content {
+            min-height: calc(100vh - 70px - 200px);
+            padding: 30px 20px;
+        }
+
+        /* ===== ALERTS ===== */
+        .alert {
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            background-color: #2c3e50 !important;
+            color: white !important;
+            padding: 30px 20px !important;
+            text-align: center;
+            margin-top: 40px;
+            border-top: none !important;
+        }
+
+        footer p {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        /* ===== CUSTOM MODAL STYLING ===== */
+        .modal-content {
+            border-radius: 12px;
+            animation: slideInDown 0.3s ease-out;
+            border: none;
+        }
+
+        .modal-header {
+            border-radius: 12px 12px 0 0;
+            padding: 1.5rem;
+            font-weight: 600;
+            border: none;
+        }
+
+        .modal-body {
+            font-size: 1rem;
+            line-height: 1.6;
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            border-radius: 0 0 12px 12px;
+            gap: 10px;
+            border: none;
+            background-color: #f8f9fa;
+            padding: 1.25rem 1.5rem;
+        }
+
+        /* Modal dialog centered vertically and horizontally */
+        .modal-dialog-centered {
+            display: flex !important;
+            align-items: center !important;
+            min-height: 100vh;
+        }
+
+        /* Smooth animation for modal appearance */
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Button styling in modal */
+        .modal-footer .btn {
+            padding: 0.6rem 1.5rem;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-footer .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header.bg-warning {
+            background-color: #ffc107 !important;
+        }
+
+        .modal-header.bg-danger {
+            background-color: #dc3545 !important;
+        }
+
+        /* ===== RESPONSIVE DESIGN ===== */
+        @media (max-width: 992px) {
+            .navbar-nav .nav-link {
+                padding: 12px 15px !important;
+                font-size: 13px;
+            }
+
+            .navbar-brand {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .navbar-brand {
+                font-size: 16px;
+                gap: 6px;
+            }
+
+            .navbar-nav .nav-link {
+                padding: 10px 12px !important;
+                font-size: 12px;
+            }
+
+            .main-content {
+                padding: 20px 15px;
+            }
+
+            footer p {
+                font-size: 12px;
+            }
+
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+
+            .modal-header {
+                padding: 1rem;
+            }
+
+            .modal-body {
+                padding: 1rem;
+            }
+
+            .modal-footer {
+                padding: 0.75rem 1rem;
+                flex-wrap: wrap;
+            }
+
+            .modal-footer .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+                flex: 1 1 45%;
+            }
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid px-3">
+            <!-- Logo/Brand -->
+            <a class="navbar-brand" href="/">
+                <span>📊</span>
+                <span>Timeline Tracker</span>
+            </a>
+
+            <!-- Mobile Toggle Button -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Navigation Menu -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <!-- Dashboard Link -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="/">
+                            <span>📋</span>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+
+                    <!-- Gantt Chart Link -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'gantt_chart' %}active{% endif %}" href="/gantt-chart">
+                            <span>📈</span>
+                            <span>Gantt Chart</span>
+                        </a>
+                    </li>
+
+                    <!-- Add Project Link -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="/add-project">
+                            <span>➕</span>
+                            <span>New Project</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                        <strong>
+                            {% if category == 'error' %}
+                                ❌ Error
+                            {% elif category == 'success' %}
+                                ✅ Success
+                            {% elif category == 'info' %}
+                                ℹ️ Info
+                            {% elif category == 'warning' %}
+                                ⚠️ Warning
+                            {% endif %}
+                        </strong>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Page Content Block -->
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 Timeline Tracker. All Rights Reserved.</p>
+        <p>Project &amp; Milestone Management System</p>
+    </footer>
+
+    <!-- Bootstrap JS Bundle (includes Popper.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Additional Scripts Block -->
+    {% block scripts %}{% endblock %}
+
+    <!-- ============ PROFESSIONAL MODAL POPUPS ============ -->
+
+    <!-- 1. Validation/Info Modal -->
+    <div class="modal fade" id="validationModal" tabindex="-1" aria-labelledby="validationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-warning text-dark border-0">
+                    <h5 class="modal-title fw-bold" id="validationModalLabel">
+                        <i class="bi bi-exclamation-circle"></i> Attention
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <p id="validationMessage" class="mb-0 text-muted fs-5"></p>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-warning" data-bs-dismiss="modal">
+                        <i class="bi bi-check-circle"></i> Okay
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Delete Milestones Modal -->
+    <div class="modal fade" id="deleteMilestonesModal" tabindex="-1" aria-labelledby="deleteMilestonesLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white border-0">
+                    <h5 class="modal-title fw-bold" id="deleteMilestonesLabel">
+                        <i class="bi bi-exclamation-triangle"></i> Delete Milestones
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <p id="deleteMilestonesMessage" class="mb-0 text-muted fs-5"></p>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDeleteMilestones()">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Delete Project Modal -->
+    <div class="modal fade" id="deleteProjectModal" tabindex="-1" aria-labelledby="deleteProjectLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white border-0">
+                    <h5 class="modal-title fw-bold" id="deleteProjectLabel">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Delete Project
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <p id="deleteProjectMessage" class="mb-0 text-muted fs-5"></p>
+                    <div class="alert alert-danger mt-3 mb-0" role="alert">
+                        <i class="bi bi-info-circle"></i> <strong>Warning:</strong> This Action Cannot Be Undone!
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteProjectBtn" onclick="confirmDeleteProject()">
+                        <i class="bi bi-trash-fill"></i> Delete Project
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {% if category == 'success' %}
+                            <i class="bi bi-check-circle-fill"></i>
+                        {% elif category == 'warning' %}
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        {% elif category == 'error' %}
+                            <i class="bi bi-x-circle-fill"></i>
+                        {% endif %}
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    <!-- ============ JAVASCRIPT FOR MODAL FUNCTIONS ============ -->
+    <script>
+        // Global variables to store context
+        let pendingProjectId = null;
+        let pendingMilestoneCount = 0;
+
+        // 1. VALIDATION MODAL (for alerts)
+        function showValidationModal(message) {
+            document.getElementById('validationMessage').textContent = message;
+            const modal = new bootstrap.Modal(document.getElementById('validationModal'));
+            modal.show();
+        }
+
+        // 2. DELETE MILESTONES MODAL
+        function showDeleteMilestonesModal(count) {
+            pendingMilestoneCount = count;
+            const message = `Are you sure you want to delete ${count} milestone${count > 1 ? 's' : ''}? This action cannot be undone.`;
+            document.getElementById('deleteMilestonesMessage').textContent = message;
+            const modal = new bootstrap.Modal(document.getElementById('deleteMilestonesModal'));
+            modal.show();
+        }
+
+        function confirmDeleteMilestones() {
+            const form = document.getElementById('deleteMilestonesForm');
+            if (form) {
+                form.submit();
+            }
+        }
+
+        // 3. DELETE PROJECT MODAL
+        function showDeleteProjectModal(projectId, projectName) {
+            pendingProjectId = projectId;
+            const message = `This will permanently delete the project "${projectName}" and all its milestones. This action cannot be undone.`;
+            document.getElementById('deleteProjectMessage').textContent = message;
+            const modal = new bootstrap.Modal(document.getElementById('deleteProjectModal'));
+            modal.show();
+        }
+
+        function confirmDeleteProject() {
+            if (pendingProjectId) {
+                window.location.href = `/delete-project/${pendingProjectId}`;
+            }
+        }
+    </script>
+</body>
+
+</html>

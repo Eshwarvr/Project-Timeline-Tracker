@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.project_name }}{% endblock %}
+
+{% block content %}
+<!-- Project Header -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h1>{{ project.project_name }}</h1>
+        <p class="text-muted"><i class="bi bi-person-circle"></i> Client: {{ project.client_name }}</p>
+    </div>
+    <div class="col-md-6 text-end d-flex justify-content-end align-items-start flex-wrap gap-2">
+        <a href="/add-milestone/{{ project.id }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add Milestone</a>
+        <a href="{{ url_for('edit_project', project_id=project.id) }}" class="btn btn-success"> <i class="bi bi-pencil-square"></i> Edit Project </a>
+        <a href="/" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<!-- Combined Row: Details (3/4) + Progress (1/4) -->
+<div class="row mb-4 g-4">
+  <!-- Project Details: 3/4 -->
+  <div class="col-12 col-md-8 col-lg-9">
+    <div class="card shadow h-100">
+      <div class="card-header bg-white text-dark border-bottom">
+        <h5 class="mb-0"><i class="bi bi-info-circle"></i> Project Details</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <strong><i class="bi bi-calendar-check"></i> Start Date:</strong><br>
+            <span class="text-muted">{{ project.start_date|ddmmyyyy }}</span>
+          </div>
+          <div class="col-md-3">
+            <strong><i class="bi bi-calendar-x"></i> End Date:</strong><br>
+            <span class="text-muted">{{ project.end_date|ddmmyyyy }}</span>
+          </div>
+          <div class="col-md-3">
+            <strong><i class="bi bi-list-task"></i> Total Milestones:</strong><br>
+            <span class="badge bg-info fs-6">{{ project.milestones|length }}</span>
+          </div>
+          <div class="col-md-3">
+            <strong><i class="bi bi-flag"></i> Status:</strong><br>
+            <form method="post" action="{{ url_for('toggle_status', project_id=project.id) }}" style="display:inline;">
+              {% if project.status == "Completed" %}
+                <button type="submit" class="btn btn-success btn-sm">
+                  <i class="bi bi-check-circle"></i> Completed
+                </button>
+              {% else %}
+                <button type="submit" class="btn btn-secondary btn-sm">
+                  <i class="bi bi-circle"></i> Not Completed
+                </button>
+              {% endif %}
+            </form>
+            {% if project.status == "Overdue" %}
+              <span class="badge bg-danger ms-2">Overdue</span>
+            {% elif project.status == "In Progress" %}
+              <span class="badge bg-warning text-dark ms-2">In Progress</span>
+            {% elif project.status == "Not Started" %}
+              <span class="badge bg-secondary ms-2">Not Started</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project Progress: 1/4 -->
+  <div class="col-12 col-md-4 col-lg-3">
+    <div class="card shadow h-100 border-success">
+      <div class="card-header bg-white text-dark border-bottom">
+        <h5 class="mb-0"><i class="bi bi-speedometer2"></i> Project Progress</h5>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-bold fs-6">Completion Status:</span>
+          <span class="badge bg-primary">{{ completed_milestones }}/{{ total_milestones }} Milestones Completed</span>
+        </div>
+        <div class="progress" style="height: 28px;">
+          <div class="progress-bar progress-bar-striped progress-bar-animated
+            {% if completion_percentage == 100 %}bg-success
+            {% elif completion_percentage >= 75 %}bg-info
+            {% elif completion_percentage >= 50 %}bg-warning
+            {% else %}bg-danger{% endif %}"
+            role="progressbar"
+            style="width: {{ completion_percentage }}%;"
+            aria-valuenow="{{ completion_percentage }}"
+            aria-valuemin="0"
+            aria-valuemax="100">
+            <strong>{{ completion_percentage }}%</strong>
+          </div>
+        </div>
+        <div class="mt-2 text-muted small">
+          {% if completion_percentage == 100 %}
+            <i class="bi bi-check-circle-fill text-success"></i> Project Completed!
+          {% elif completion_percentage >= 75 %}
+            <i class="bi bi-hourglass-split text-info"></i> Almost There!
+          {% elif completion_percentage >= 50 %}
+            <i class="bi bi-hourglass text-warning"></i> Halfway Through!
+          {% elif completion_percentage > 0 %}
+            <i class="bi bi-play-circle text-danger"></i> Just Getting Started!
+          {% else %}
+            <i class="bi bi-exclamation-triangle text-danger"></i> No Milestones Completed Yet.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PERFECT GANTT CHART WITH ACTUAL DATES ===== -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Milestones Timeline</h5>
+            </div>
+            <div class="card-body" style="padding: 20px; background: #f9f9f9;">
+                {% if project.milestones %}
+                <div style="overflow-x: auto; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                    <div style="display: flex;">
+                        <!-- LEFT: MILESTONE NAMES (Fixed width) -->
+                        <div style="width: 220px; flex-shrink: 0; border-right: 2px solid #007bff;">
+                            <!-- Header -->
+                            <div style="height: 50px; font-weight: bold; font-size: 14px; border-bottom: 2px solid #007bff; display: flex; align-items: center; padding: 0 15px; background: #e7f3ff; color: #0d6efd;">
+                                Milestone Name
+                            </div>
+                            <!-- Milestone rows -->
+                            {% for milestone in project.milestones %}
+                            <div style="height: 60px; border-bottom: 1px solid #ddd; display: flex; align-items: center; padding: 0 15px; font-weight: 600; font-size: 13px; background: #fafafa; overflow: hidden;">
+                                {{ milestone.milestone_name }}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- RIGHT: TIMELINE (Scrollable) -->
+                        <div style="flex: 1; position: relative; display: flex; flex-direction: column; min-width: 500px;">
+                            {% set total_days = (project.end_date - project.start_date).days + 1 %}
+                            {% set today_day_num = ((today - project.start_date).days) + 1 %}
+
+                            <!-- DATE HEADER - ALL DAYS WITH TODAY MARKER -->
+                            <div style="display: flex; height: 50px; background: #e7f3ff; font-weight: bold; font-size: 10px; position: relative;">
+                                {% for day_num in range(total_days) %}
+                                    <div style="flex: 1; text-align: center; border-right: 1px solid #ccc; border-bottom: 2px solid #007bff;{% if day_num == total_days - 1 %}border-right: 2px solid #007bff;{% endif %} display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; color: #0d6efd; min-width: 50px; line-height: 1.2;">
+                                        <div>Day {{ day_num + 1 }}</div>
+                                        {% if day_num + 1 == today_day_num and today_day_num >= 1 and today_day_num <= total_days %}
+                                            <div style="color: #ff0000; font-weight: bold; font-size: 9px;">TODAY</div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- MILESTONE BARS - EXTENDS TO PROJECT END DATE -->
+                            {% set total_days = (project.end_date - project.start_date).days + 1 %}
+
+                            {% for milestone in project.milestones %}
+
+                                {% set milestone_duration = (milestone.end_date - milestone.start_date).days + 1 %}
+                                {% set days_from_start = (milestone.start_date - project.start_date).days %}
+                                
+                                {% set actual_status = milestone.status %}
+                                {% if today > milestone.end_date and actual_status != 'Completed' %}
+                                    {% set actual_status = 'Overdue' %}
+                                {% elif today < milestone.start_date and actual_status == 'In Progress' %}
+                                    {% set actual_status = 'Not Started' %}
+                                {% endif %}
+
+                                {% if actual_status == 'Completed' %}
+                                    {% set bar_color = '#28a745' %}
+                                {% elif actual_status == 'Overdue' %}
+                                    {% set bar_color = '#dc3545' %}
+                                {% elif milestone.priority == 'High' %}
+                                    {% set bar_color = '#ff6384' %}
+                                {% elif milestone.priority == 'Low' %}
+                                    {% set bar_color = '#4bc0c0' %}
+                                {% else %}
+                                    {% set bar_color = '#0d6efd' %}
+                                {% endif %}
+
+                                <div style="display: flex; height: 60px; background: #ffffff; align-items: center; position: relative; border-bottom: 1px solid #ddd;">
+                                    <!-- DRAW BAR CELL BY CELL FOR PERFECT ALIGNMENT -->
+                                    {% for day_num in range(total_days) %}
+                                        <div style="flex: 1; border-right: 1px solid #efefef; border-bottom: 1px solid #e0e0e0; height: 100%; min-width: 50px; position: relative; box-sizing: border-box;">
+                                            <!-- DRAW BAR SEGMENT IF THIS DAY IS IN MILESTONE RANGE -->
+                                            {% if day_num >= days_from_start and day_num < (days_from_start + milestone_duration) %}
+                                                <div style="position: absolute; 
+                                                            top: 12.5px; 
+                                                            left: {% if day_num == days_from_start %}3px{% else %}0{% endif %}; 
+                                                            right: {% if day_num == (days_from_start + milestone_duration - 1) %}3px{% else %}0{% endif %}; 
+                                                            height: 35px; 
+                                                            background-color: {{ bar_color }}; 
+                                                            {% if day_num == days_from_start %}border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-left: 2px solid {{ bar_color }};{% endif %}
+                                                            {% if day_num == (days_from_start + milestone_duration - 1) %}border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-right: 2px solid {{ bar_color }};{% endif %}
+                                                            border-top: 2px solid {{ bar_color }};
+                                                            border-bottom: 2px solid {{ bar_color }};
+                                                            display: flex; 
+                                                            align-items: center; 
+                                                            justify-content: center; 
+                                                            color: white; 
+                                                            font-weight: bold; 
+                                                            font-size: 11px; 
+                                                            opacity: 0.92; 
+                                                            box-shadow: 0 2px 6px rgba(0,0,0,0.2); 
+                                                            cursor: pointer;
+                                                            transition: opacity 0.2s, box-shadow 0.2s;"
+                                                    title="📌 {{ milestone.milestone_name }} | Start: {{ milestone.start_date|ddmmyyyy }} | End: {{ milestone.end_date|ddmmyyyy }} | Duration: {{ milestone_duration }} days | Status: {{ milestone.status }} | Priority: {{ milestone.priority }}"
+                                                    onmouseover="this.style.opacity='1'; this.style.boxShadow='0 4px 10px rgba(0,0,0,0.3)';"
+                                                    onmouseout="this.style.opacity='0.92'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.2)';">
+                                                    <!-- SHOW TEXT ONLY IN MIDDLE CELL -->
+                                                    {% if day_num == (days_from_start + (milestone_duration // 2)) %}
+                                                        {{ milestone_duration }} days
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">No Milestones To Display Timeline</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Milestones Data Table -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-table"></i> Milestones</h5>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-danger" id="deleteSelectedBtn" disabled onclick="deleteSelected()">
+                        <i class="bi bi-trash"></i> Delete Selected
+                    </button>
+                    <a href="/add-milestone/{{ project.id }}" class="btn btn-sm btn-light"><i class="bi bi-plus-circle"></i> Add Milestone</a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if project.milestones %}
+                <form id="deleteMilestonesForm" method="post" action="/delete-milestones">
+                    <input type="hidden" name="project_id" value="{{ project.id }}">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-bordered align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th class="text-center" style="width:50px;">
+                                        <input type="checkbox" id="selectAll" class="form-check-input" style="width: 20px; height: 20px;" onchange="toggleSelectAll(this)">
+                                    </th>
+                                    <th>Milestone Name</th>
+                                    <th style="width: 130px;">Start Date</th>
+                                    <th style="width: 130px;">End Date</th>
+                                    <th style="width: 150px;" class="text-center">Priority</th>
+                                    <th style="width: 200px;" class="text-center">Status</th>
+                                    <th style="width: 150px;" class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for milestone in project.milestones %}
+                                <tr>
+                                    <td class="text-center">
+                                        <input type="checkbox" name="milestone_ids" value="{{ milestone.id }}"
+                                               class="form-check-input milestone-checkbox"
+                                               style="width: 20px; height: 20px;"
+                                               onchange="updateDeleteButton()">
+                                    </td>
+                                    <td><strong><i class="bi bi-flag-fill me-2"></i>{{ milestone.milestone_name }}</strong></td>
+                                    <td>{{ milestone.start_date|ddmmyyyy }}</td>
+                                    <td>{{ milestone.end_date|ddmmyyyy }}</td>
+                                    <td class="text-center">
+                                        {% if milestone.priority == "High" %}
+                                            <span class="badge bg-danger">🔴 High</span>
+                                        {% elif milestone.priority == "Medium" %}
+                                            <span class="badge bg-warning text-dark">🟡 Medium</span>
+                                        {% elif milestone.priority == "Low" %}
+                                            <span class="badge bg-success">🟢 Low</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% set display_status = milestone.status %}
+                                        {% if today > milestone.end_date and milestone.status != 'Completed' %}
+                                            {% set display_status = 'Overdue' %}
+                                        {% elif today < milestone.start_date and milestone.status == 'In Progress' %}
+                                            {% set display_status = 'Not Started' %}
+                                        {% endif %}
+                                        
+                                        <span class="badge {% if display_status == 'Completed' %}bg-success{% elif display_status == 'Overdue' %}bg-danger{% elif display_status == 'In Progress' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                            {% if display_status == 'Completed' %}✓ Completed{% elif display_status == 'Overdue' %}⚠ Overdue{% elif display_status == 'In Progress' %}In Progress{% else %}Not Started{% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ url_for('edit_milestone', milestone_id=milestone.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-table text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="text-muted mt-3">No Milestones Yet</h5>
+                    <p class="text-muted">Get Started By Creating Your First Milestone</p>
+                    <a href="/add-milestone/{{ project.id }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add Your First Milestone</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Danger Zone -->
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card shadow border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill"></i> Danger Zone</h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h6 class="mb-2"><strong>Delete This Project</strong></h6>
+                        <p class="text-muted mb-0">
+                            <i class="bi bi-info-circle"></i>
+                            Once you delete this project, there is no going back. This action will permanently delete
+                            <strong>{{ project.project_name }}</strong> and all its milestones.
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <a href="#" class="btn btn-danger btn-lg" onclick="showDeleteProjectModal('{{ project.id }}', '{{ project.project_name }}'); return false;">
+                            <i class="bi bi-trash-fill"></i> Delete Project
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ===== DELETION FUNCTIONS =====
+function updateDeleteButton() {
+    const checkboxes = document.querySelectorAll('.milestone-checkbox');
+    let checkedCount = 0;
+    checkboxes.forEach(cb => { if (cb.checked) checkedCount++; });
+    document.getElementById('deleteSelectedBtn').disabled = checkedCount === 0;
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) {
+        selectAll.checked = (checkedCount === checkboxes.length && checkboxes.length > 0);
+        selectAll.indeterminate = (checkedCount > 0 && checkedCount < checkboxes.length);
+    }
+}
+
+function toggleSelectAll(selectAllBox) {
+    const checkboxes = document.querySelectorAll('.milestone-checkbox');
+    checkboxes.forEach(cb => { cb.checked = selectAllBox.checked; });
+    updateDeleteButton();
+}
+
+function deleteSelected() {
+    const checkedCount = document.querySelectorAll('.milestone-checkbox:checked').length;
+    if (checkedCount === 0) return;
+    showDeleteMilestonesModal(checkedCount);
+}
+
+// ===== STATUS UPDATE FUNCTION =====
+/*function updateMilestoneStatus(selectElement, milestoneId) {
+    const newStatus = selectElement.value;
+    const formData = new FormData();
+    formData.append('status', newStatus);
+    fetch(`/update-milestone-status/${milestoneId}`, {
+        method: 'POST',
+        body: formData
+    }).then(response => {
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to update status. Please try again.');
+        }
+    }).catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+    });
+}*/
+
+document.addEventListener('DOMContentLoaded', updateDeleteButton);
+</script>
+{% endblock %}

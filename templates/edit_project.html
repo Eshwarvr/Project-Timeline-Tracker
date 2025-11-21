@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Project - {{ project.project_name }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="mb-2"><i class="bi bi-pencil-square"></i> Edit Project</h1>
+                <p class="text-muted mb-0">
+                    <i class="bi bi-folder"></i> Project: <strong>{{ project.project_name }}</strong>
+                </p>
+            </div>
+            <div>
+                <!-- ✅ FIXED: Use project_id instead of project_slug -->
+                <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back To Project
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-pencil-square"></i> Project Information</h5>
+            </div>
+            <div class="card-body">
+                <!-- ✅ ERROR MESSAGE DISPLAY -->
+                {% if error %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-circle"></i> <strong>Error:</strong> {{ error }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('edit_project', project_id=project.id) }}">
+                    <form method="POST" action="{{ url_for('add_project') }}">
+                        <div id="duplicate-warning" class="duplicate-warning"></div>
+                    <div class="mb-3">
+                        <label for="project_name" class="form-label">
+                            <i class="bi bi-briefcase"></i> Project Name
+                        </label>
+                        <input type="text" class="form-control" id="project_name" 
+                               name="project_name" value="{{ project.project_name }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="client_name" class="form-label">
+                            <i class="bi bi-person-circle"></i> Client Name
+                        </label>
+                        <input type="text" class="form-control" id="client_name" 
+                               name="client_name" value="{{ project.client_name }}" required>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="start_date" class="form-label">
+                                <i class="bi bi-calendar-event"></i> Start Date
+                            </label>
+                            <input type="text" id="start_date" name="start_date" class="form-control"
+                                value="{{ project.start_date|ddmmyyyy }}" 
+                                placeholder="DD-MM-YYYY" 
+                                pattern="\d{2}-\d{2}-\d{4}" 
+                                title="Enter date in DD-MM-YYYY format"
+                                required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="end_date" class="form-label">
+                                <i class="bi bi-calendar-event"></i> End Date
+                            </label>
+                            <input type="text" id="end_date" name="end_date" class="form-control"
+                                value="{{ project.end_date|ddmmyyyy }}" 
+                                placeholder="DD-MM-YYYY" 
+                                pattern="\d{2}-\d{2}-\d{4}" 
+                                title="Enter date in DD-MM-YYYY format"
+                                required>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <div class="d-flex gap-2 justify-content-end">
+                        <!-- ✅ FIXED: Use project_id instead of project_slug -->
+                        <a href="{{ url_for('view_project', project_id=project.id) }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Current Project Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong><i class="bi bi-briefcase"></i> Project Name:</strong>
+                    <p class="text-muted mb-0">{{ project.project_name }}</p>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <strong><i class="bi bi-person-circle"></i> Client:</strong>
+                    <p class="text-muted mb-0">{{ project.client_name }}</p>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <strong><i class="bi bi-calendar-range"></i> Current Duration:</strong>
+                    <p class="text-muted mb-0">
+                        {{ project.start_date|ddmmyyyy }}<br>
+                        To<br>
+                        {{ project.end_date|ddmmyyyy }}
+                    </p>
+                </div>
+                <hr>
+                <div class="mb-0">
+                    <strong><i class="bi bi-flag"></i> Total Milestones:</strong>
+                    <p class="text-muted mb-0">{{ project.milestones|length }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow border-warning mt-3">
+            <div class="card-header bg-warning">
+                <h6 class="mb-0"><i class="bi bi-lightbulb"></i> Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="small mb-0">
+                    <li>Update Project Details As Needed</li>
+                    <li>Dates Can Be Adjusted For Project Timeline Changes</li>
+                    <li>All Milestones Will Remain Unchanged</li>
+                    <li>Save Changes To Update The Project</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<style>
+    .ui-autocomplete {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 1000 !important;
+        background: #1f2121;
+        border: 1px solid rgba(119, 124, 124, 0.3);
+        border-radius: 8px;
+        padding: 4px 0;
+    }
+    
+    .ui-menu-item {
+        padding: 8px 12px;
+        color: #f5f5f5;
+        cursor: pointer;
+    }
+    
+    .ui-menu-item:hover,
+    .ui-state-active {
+        background: rgba(50, 184, 198, 0.15) !important;
+        border: none !important;
+    }
+    
+    .duplicate-warning {
+        background: rgba(168, 75, 47, 0.15);
+        border: 1px solid rgba(168, 75, 47, 0.25);
+        color: #E68161;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        display: none;
+    }
+</style>
+{% endblock %}
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Title case conversion function
+    function toTitleCase(str) {
+        return str.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+    }
+    
+    // Auto-convert to title case on blur
+    $('#project_name, #client_name').on('blur', function() {
+        $(this).val(toTitleCase($(this).val()));
+    });
+    
+    // Project name autocomplete
+    $('#project_name').autocomplete({
+        source: '/api/autocomplete-projects',
+        minLength: 1,
+        select: function(event, ui) {
+            // When a project is selected, check for duplicate
+            checkProjectExists(ui.item.value);
+        }
+    });
+    
+    // Client name autocomplete
+    $('#client_name').autocomplete({
+        source: '/api/autocomplete-clients',
+        minLength: 1
+    });
+    
+    // Check if project exists when typing
+    let typingTimer;
+    $('#project_name').on('keyup', function() {
+        clearTimeout(typingTimer);
+        const projectName = $(this).val();
+        
+        if (projectName.length >= 2) {
+            typingTimer = setTimeout(function() {
+                checkProjectExists(projectName);
+            }, 500);
+        } else {
+            $('#duplicate-warning').hide();
+        }
+    });
+    
+    // Function to check if project exists
+    function checkProjectExists(projectName) {
+        const currentProjectName = "{{ project.project_name }}"; // Current project name
+        
+        // Don't check if it's the same as current project
+        if (projectName.toLowerCase() === currentProjectName.toLowerCase()) {
+            $('#duplicate-warning').fadeOut();
+            return;
+        }
+        
+        $.ajax({
+            url: '/api/check-project-exists',
+            method: 'GET',
+            data: { name: projectName },
+            success: function(response) {
+                if (response.exists) {
+                    $('#duplicate-warning').html(
+                        '<strong>⚠️ Warning:</strong> ' + response.message
+                    ).fadeIn();
+                } else {
+                    $('#duplicate-warning').fadeOut();
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% endblock %}

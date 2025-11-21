@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Add Project{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Add New Project</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="/add-project">
+                    <form method="POST" action="{{ url_for('add_project') }}">
+                        <div id="duplicate-warning" class="duplicate-warning"></div>
+                    <div class="mb-3">
+                        <label for="project_name" class="form-label">Project Name</label>
+                        <input type="text" class="form-control" id="project_name" name="project_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="client_name" class="form-label">Client Name</label>
+                        <input type="text" class="form-control" id="client_name" name="client_name" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Create Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<style>
+    .ui-autocomplete {
+        max-height: 200px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        z-index: 1000 !important;
+        background: #1f2121;
+        border: 1px solid rgba(119, 124, 124, 0.3);
+        border-radius: 8px;
+        padding: 4px 0;
+    }
+    
+    .ui-menu-item {
+        padding: 8px 12px;
+        color: #f5f5f5;
+        cursor: pointer;
+    }
+    
+    .ui-menu-item:hover,
+    .ui-state-active {
+        background: rgba(50, 184, 198, 0.15) !important;
+        border: none !important;
+    }
+    
+    .duplicate-warning {
+        background: rgba(168, 75, 47, 0.15);
+        border: 1px solid rgba(168, 75, 47, 0.25);
+        color: #E68161;
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        display: none;
+    }
+</style>
+{% endblock %}
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Title case conversion function
+    function toTitleCase(str) {
+        return str.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+    }
+    
+    // Auto-convert to title case on blur
+    $('#project_name, #client_name').on('blur', function() {
+        $(this).val(toTitleCase($(this).val()));
+    });
+    
+    // Project name autocomplete
+    $('#project_name').autocomplete({
+        source: '/api/autocomplete-projects',
+        minLength: 1,
+        select: function(event, ui) {
+            // When a project is selected, check for duplicate
+            checkProjectExists(ui.item.value);
+        }
+    });
+    
+    // Client name autocomplete
+    $('#client_name').autocomplete({
+        source: '/api/autocomplete-clients',
+        minLength: 1
+    });
+    
+    // Check if project exists when typing
+    let typingTimer;
+    $('#project_name').on('keyup', function() {
+        clearTimeout(typingTimer);
+        const projectName = $(this).val();
+        
+        if (projectName.length >= 2) {
+            typingTimer = setTimeout(function() {
+                checkProjectExists(projectName);
+            }, 500);
+        } else {
+            $('#duplicate-warning').hide();
+        }
+    });
+    
+    // Function to check if project exists
+    function checkProjectExists(projectName) {
+        $.ajax({
+            url: '/api/check-project-exists',
+            method: 'GET',
+            data: { name: projectName },
+            success: function(response) {
+                if (response.exists) {
+                    $('#duplicate-warning').html(
+                        '<strong>⚠️ Warning:</strong> ' + response.message
+                    ).fadeIn();
+                } else {
+                    $('#duplicate-warning').fadeOut();
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% endblock %}

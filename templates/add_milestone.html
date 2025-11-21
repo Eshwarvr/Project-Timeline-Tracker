@@ -48,7 +48,7 @@
                     <!-- ✅ SHOW PROJECT DATE RANGE INFORMATION -->
                     <div class="alert alert-info mb-3">
                         <i class="bi bi-calendar-range"></i> <strong>Project Date Range:</strong> 
-                        {{ project.start_date|ddmmyyyy }} To {{ project.end_date|ddmmyyyy }}
+                        {{ project.start_date.strftime('%d-%m-%Y') }} To {{ project.end_date.strftime('%d-%m-%Y') }}
                     </div>
 
                     <div class="row">
@@ -57,10 +57,9 @@
                                 <i class="bi bi-calendar-check"></i> Start Date
                                 <span class="text-danger">*</span>
                             </label>
-                            <input type="text" id="startdate" name="startdate" class="form-control"
-                                placeholder="DD-MM-YYYY" 
-                                pattern="\d{2}-\d{2}-\d{4}" 
-                                title="Enter date in DD-MM-YYYY format"
+                            <input type="date" id="startdate" name="startdate" class="form-control"
+                                min="{{ project.start_date.strftime('%Y-%m-%d') }}"
+                                max="{{ project.end_date.strftime('%Y-%m-%d') }}"
                                 required>
                             <small class="text-muted">Must Be Within Project Date Range</small>
                         </div>
@@ -69,10 +68,9 @@
                                 <i class="bi bi-calendar-x"></i> End Date
                                 <span class="text-danger">*</span>
                             </label>
-                            <input type="text" id="enddate" name="enddate" class="form-control"
-                                placeholder="DD-MM-YYYY" 
-                                pattern="\d{2}-\d{2}-\d{4}" 
-                                title="Enter date in DD-MM-YYYY format"
+                            <input type="date" id="enddate" name="enddate" class="form-control"
+                                min="{{ project.start_date.strftime('%Y-%m-%d') }}"
+                                max="{{ project.end_date.strftime('%Y-%m-%d') }}"
                                 required>
                             <small class="text-muted">Must Be Within Project Date Range</small>
                         </div>
@@ -140,9 +138,9 @@
                 <div class="mb-3">
                     <strong><i class="bi bi-calendar-range"></i> Project Duration:</strong>
                     <p class="text-muted mb-0">
-                        {{ project.start_date|ddmmyyyy }}<br>
+                        {{ project.start_date.strftime('%d-%m-%Y') }}<br>
                         To<br>
-                        {{ project.end_date|ddmmyyyy }}
+                        {{ project.end_date.strftime('%d-%m-%Y') }}
                     </p>
                 </div>
                 <hr>

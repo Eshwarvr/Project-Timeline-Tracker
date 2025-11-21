@@ -61,22 +61,16 @@
                             <label for="start_date" class="form-label">
                                 <i class="bi bi-calendar-event"></i> Start Date
                             </label>
-                            <input type="text" id="start_date" name="start_date" class="form-control"
-                                value="{{ project.start_date|ddmmyyyy }}" 
-                                placeholder="DD-MM-YYYY" 
-                                pattern="\d{2}-\d{2}-\d{4}" 
-                                title="Enter date in DD-MM-YYYY format"
+                            <input type="date" id="start_date" name="start_date" class="form-control"
+                                value="{{ project.start_date.strftime('%Y-%m-%d') }}"
                                 required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="end_date" class="form-label">
                                 <i class="bi bi-calendar-event"></i> End Date
                             </label>
-                            <input type="text" id="end_date" name="end_date" class="form-control"
-                                value="{{ project.end_date|ddmmyyyy }}" 
-                                placeholder="DD-MM-YYYY" 
-                                pattern="\d{2}-\d{2}-\d{4}" 
-                                title="Enter date in DD-MM-YYYY format"
+                            <input type="date" id="end_date" name="end_date" class="form-control"
+                                value="{{ project.end_date.strftime('%Y-%m-%d') }}"
                                 required>
                         </div>
                     </div>
@@ -116,9 +110,12 @@
                 <div class="mb-3">
                     <strong><i class="bi bi-calendar-range"></i> Current Duration:</strong>
                     <p class="text-muted mb-0">
-                        {{ project.start_date|ddmmyyyy }}<br>
-                        To<br>
-                        {{ project.end_date|ddmmyyyy }}
+-                        {{ project.start_date.strftime('%Y-%m-%d') }}<br>
+-                        to<br>
+-                        {{ project.end_date.strftime('%Y-%m-%d') }}
++                        {{ project.start_date.strftime('%d-%m-%Y') }}<br>
++                        To<br>
++                        {{ project.end_date.strftime('%d-%m-%Y') }}
                     </p>
                 </div>
                 <hr>
@@ -259,4 +256,4 @@ $(document).ready(function() {
 </script>
 {% endblock %}
 
-{% endblock %}
+{% endblock %

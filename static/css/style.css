@@ -109,3 +109,23 @@ h1, h2, h3, h4, h5, h6 {
     padding-left: 15px;
     padding-right: 15px;
 }
+
+.gantt-cell-name,
+.project-name {
+    max-width: 220px; /* Set a fixed width for the name container */
+    overflow: hidden; /* Hide overflowing text */
+    text-overflow: ellipsis; /* Add ellipsis for overflowing text */
+    white-space: nowrap; /* Prevent text from wrapping */
+    margin-right: 10px; /* Add a margin to maintain spacing */
+    cursor: pointer; /* Indicate interactivity */
+}
+
+.gantt-cell-name:hover,
+.project-name:hover {
+    text-decoration: underline; /* Optional: Add underline on hover for better UX */
+}
+
+.gantt-cell-name[title],
+.project-name[title] {
+    position: relative; /* Ensure tooltip positioning works */
+}

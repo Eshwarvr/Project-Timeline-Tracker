@@ -234,7 +234,7 @@
         padding: 8px 12px;
         font-weight: 600;
         color: #2c3e50;
-        border-right: 2px solid #0d6efd;
+        border-right: none;
         text-align: left;
     }
 
@@ -303,7 +303,7 @@
         padding: 8px 12px;
         font-size: 13px;
         color: #333;
-        border-right: 2px solid #0d6efd;
+        border-right: none;
         font-weight: 600;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -579,11 +579,52 @@
             min-width: 120px;
         }
     }
+
+    /* Tooltip for Gantt Bars */
+    .gantt-bar-tooltip {
+        position: absolute;
+        background: rgba(44, 62, 80, 0.95);
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.6;
+        pointer-events: none;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        white-space: nowrap;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        max-width: 300px;
+    }
+
+    .gantt-bar-tooltip.show {
+        opacity: 1;
+    }
+
+    .gantt-bar-tooltip strong {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 6px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+        padding-bottom: 4px;
+    }
+
+    .gantt-bar-tooltip .tooltip-row {
+        margin: 3px 0;
+    }
+
+    .gantt-bar-continuous {
+        cursor: pointer;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="gantt-container">
+    <!-- Tooltip for hover -->
+    <div class="gantt-bar-tooltip" id="ganttTooltip"></div>
+
     <!-- Header Section -->
     <div class="gantt-header">
         <h1>📊 Project Gantt Chart</h1>
@@ -606,6 +647,9 @@
         </button>
         <button class="tab-button" onclick="switchTab('monthly')">
             📆 Monthly View
+        </button>
+        <button class="tab-button" onclick="switchTab('yearly')">
+            🗓️ Yearly View
         </button>
     </div>
 
@@ -692,10 +736,223 @@
             </div>
         </div>
     </div>
+
+    <!-- Yearly View Tab -->
+    <div id="yearly" class="tab-content">
+        <div class="gantt-content">
+            <div class="gantt-chart-wrapper">
+                <div id="yearly-view"></div>
+            </div>
+            <div class="gantt-legend">
+                <h3>Legend</h3>
+                <div class="legend-items">
+                    <div class="legend-item">
+                        <div class="legend-color completed"></div>
+                        <span>Completed</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color in-progress"></div>
+                        <span>In Progress</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color not-started"></div>
+                        <span>Not Started</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color overdue"></div>
+                        <span>Overdue</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
     const projectsData = {{ projects|tojson }};
+
+
+        // Tooltip functionality
+        const tooltip = document.getElementById('ganttTooltip');
+        let tooltipTimeout;
+
+        function showTooltip(event, data, type) {
+            clearTimeout(tooltipTimeout);
+
+            const tooltipContent = type === 'project' 
+                ? `<strong>📁 ${data.project_name}</strong>
+                   <div class="tooltip-row">📅 Start: ${new Date(data.start_date).toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'})}</div>
+                   <div class="tooltip-row">📅 End: ${new Date(data.end_date).toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'})}</div>
+                   <div class="tooltip-row">📊 Progress: ${data.completion_percentage}%</div>
+                   <div class="tooltip-row">🏷️ Status: ${data.status}</div>`
+                : `<strong>🎯 ${data.milestone_name}</strong>
+                   <div class="tooltip-row">📅 Start: ${new Date(data.start_date).toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'})}</div>
+                   <div class="tooltip-row">📅 End: ${new Date(data.end_date).toLocaleDateString('en-US', {month: 'short', day: '2-digit', year: 'numeric'})}</div>
+                   <div class="tooltip-row">⚡ Priority: ${data.priority}</div>
+                   <div class="tooltip-row">🏷️ Status: ${data.status}</div>`;
+
+            tooltip.innerHTML = tooltipContent;
+            tooltip.classList.add('show');
+
+            // Position the tooltip
+            const tooltipRect = tooltip.getBoundingClientRect();
+            let left = event.pageX + 15;
+            let top = event.pageY - tooltipRect.height / 2;
+
+            if (left + tooltipRect.width > window.innerWidth) {
+                left = event.pageX - tooltipRect.width - 15;
+            }
+            if (top < window.scrollY) {
+                top = window.scrollY + 10;
+            }
+            if (top + tooltipRect.height > window.scrollY + window.innerHeight) {
+                top = window.scrollY + window.innerHeight - tooltipRect.height - 10;
+            }
+
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+        }
+
+        function hideTooltip() {
+            tooltipTimeout = setTimeout(() => {
+                tooltip.classList.remove('show');
+            }, 100);
+        }
+
+        // Add hover event listeners to all gantt bars
+        function attachBarHoverEvents() {
+            // Project bars
+            document.querySelectorAll('.gantt-row:not(.milestone-row) .gantt-bar-continuous').forEach((bar, index) => {
+                const projectIndex = parseInt(bar.closest('.gantt-row').querySelector('.gantt-cell-name').id.replace('project-', ''));
+                if (projectsData[projectIndex]) {
+                    bar.addEventListener('mouseenter', (e) => showTooltip(e, projectsData[projectIndex], 'project'));
+                    bar.addEventListener('mouseleave', hideTooltip);
+                    bar.addEventListener('mousemove', (e) => {
+                        if (tooltip.classList.contains('show')) {
+                            const tooltipRect = tooltip.getBoundingClientRect();
+                            let left = e.pageX + 15;
+                            let top = e.pageY - tooltipRect.height / 2;
+
+                            if (left + tooltipRect.width > window.innerWidth) {
+                                left = e.pageX - tooltipRect.width - 15;
+                            }
+
+                            tooltip.style.left = left + 'px';
+                            tooltip.style.top = top + 'px';
+                        }
+                    });
+                }
+            });
+
+            // Milestone bars
+            document.querySelectorAll('.milestone-row .gantt-bar-continuous').forEach((bar) => {
+                const milestoneRow = bar.closest('.milestone-row');
+                const projectRow = milestoneRow.previousElementSibling;
+
+                // Find which project row this milestone belongs to
+                let currentElement = milestoneRow;
+                while (currentElement.previousElementSibling) {
+                    currentElement = currentElement.previousElementSibling;
+                    if (currentElement.classList.contains('gantt-row') && !currentElement.classList.contains('milestone-row')) {
+                        const projectIndex = parseInt(currentElement.querySelector('.gantt-cell-name').id.replace('project-', ''));
+                        const milestoneName = milestoneRow.querySelector('.gantt-cell-name').textContent.trim();
+
+                        // Find the milestone data
+                        if (projectsData[projectIndex]) {
+                            const milestone = projectsData[projectIndex].milestones.find(m => 
+                                m.milestone_name === milestoneName.split('\n')[0].trim()
+                            );
+
+                            if (milestone) {
+                                bar.addEventListener('mouseenter', (e) => showTooltip(e, milestone, 'milestone'));
+                                bar.addEventListener('mouseleave', hideTooltip);
+                                bar.addEventListener('mousemove', (e) => {
+                                    if (tooltip.classList.contains('show')) {
+                                        const tooltipRect = tooltip.getBoundingClientRect();
+                                        let left = e.pageX + 15;
+                                        let top = e.pageY - tooltipRect.height / 2;
+
+                                        if (left + tooltipRect.width > window.innerWidth) {
+                                            left = e.pageX - tooltipRect.width - 15;
+                                        }
+
+                                        tooltip.style.left = left + 'px';
+                                        tooltip.style.top = top + 'px';
+                                    }
+                                });
+                            }
+                        }
+                        break;
+                    }
+                }
+            });
+        }
+
+    function attachBarHoverEventsYearly() {
+        // Project bars
+        document.querySelectorAll('#yearly-view .gantt-row:not(.milestone-row) .gantt-bar-continuous').forEach((bar, index) => {
+            const projectRows = Array.from(document.querySelectorAll('#yearly-view .gantt-row:not(.milestone-row)'));
+            const projectIndex = projectRows.indexOf(bar.closest('.gantt-row'));
+            if (projectsData[projectIndex]) {
+                bar.addEventListener('mouseenter', (e) => showTooltip(e, projectsData[projectIndex], 'project'));
+                bar.addEventListener('mouseleave', hideTooltip);
+                bar.addEventListener('mousemove', (e) => {
+                    if (tooltip.classList.contains('show')) {
+                        const tooltipRect = tooltip.getBoundingClientRect();
+                        let left = e.pageX + 15;
+                        let top = e.pageY - tooltipRect.height / 2;
+
+                        if (left + tooltipRect.width > window.innerWidth) {
+                            left = e.pageX - tooltipRect.width - 15;
+                        }
+
+                        tooltip.style.left = left + 'px';
+                        tooltip.style.top = top + 'px';
+                    }
+                });
+            }
+        });
+
+        // Milestone bars
+        document.querySelectorAll('#yearly-view .milestone-row .gantt-bar-continuous').forEach((bar) => {
+            const milestoneRow = bar.closest('.milestone-row');
+            // Find the parent project row
+            let currentElement = milestoneRow;
+            while (currentElement.previousElementSibling) {
+                currentElement = currentElement.previousElementSibling;
+                if (currentElement.classList.contains('gantt-row') && !currentElement.classList.contains('milestone-row')) {
+                    const projectRows = Array.from(document.querySelectorAll('#yearly-view .gantt-row:not(.milestone-row)'));
+                    const projectIndex = projectRows.indexOf(currentElement);
+                    const milestoneName = milestoneRow.querySelector('.gantt-cell-name').textContent.trim();
+                    if (projectsData[projectIndex]) {
+                        const milestone = projectsData[projectIndex].milestones.find(m => 
+                            m.milestone_name === milestoneName.split('\n')[0].trim()
+                        );
+                        if (milestone) {
+                            bar.addEventListener('mouseenter', (e) => showTooltip(e, milestone, 'milestone'));
+                            bar.addEventListener('mouseleave', hideTooltip);
+                            bar.addEventListener('mousemove', (e) => {
+                                if (tooltip.classList.contains('show')) {
+                                    const tooltipRect = tooltip.getBoundingClientRect();
+                                    let left = e.pageX + 15;
+                                    let top = e.pageY - tooltipRect.height / 2;
+
+                                    if (left + tooltipRect.width > window.innerWidth) {
+                                        left = e.pageX - tooltipRect.width - 15;
+                                    }
+
+                                    tooltip.style.left = left + 'px';
+                                    tooltip.style.top = top + 'px';
+                                }
+                            });
+                        }
+                    }
+                    break;
+                }
+            }
+        });
+    }
+
     const todayDate = new Date('{{ today }}');
 
     // Month groups: 4 sets of 3 consecutive months
@@ -838,6 +1095,7 @@
 
         html += `</div>`;
         document.getElementById('weekly-view').innerHTML = html;
+        attachBarHoverEvents();
     }
 
     function renderMonthlyView() {
@@ -946,6 +1204,123 @@
 
         html += `</div>`;
         document.getElementById('monthly-view').innerHTML = html;
+        attachBarHoverEvents();
+    }
+
+    function renderYearlyView() {
+        const currentYear = todayDate.getFullYear();
+        const months = Array.from({length: 12}, (_, i) => new Date(currentYear, i, 1));
+        const yearStart = new Date(currentYear, 0, 1);
+        const yearEnd = new Date(currentYear, 11, 31);
+        const totalDays = Math.ceil((yearEnd - yearStart) / (1000 * 60 * 60 * 24)) + 1;
+
+        let html = '';
+        html += `<div class="gantt-full-view" style="position: relative;">`;
+
+        // HEADER ROW: 12 months
+        html += `<div class="gantt-header-row">`;
+        html += `<div class="gantt-header-cell-name">Project / Milestone</div>`;
+        html += `<div class="gantt-header-cells">`;
+        months.forEach((monthDate, idx) => {
+            const isCurrentMonth = monthDate.getMonth() === todayDate.getMonth() && monthDate.getFullYear() === todayDate.getFullYear();
+            html += `<div class="gantt-header-cell ${isCurrentMonth ? 'current-month' : ''}">
+                <div class="period-label">${monthDate.toLocaleDateString('en-US', {month: 'short'})}</div>
+                <div class="date-label">${monthDate.getFullYear()}</div>
+            </div>`;
+        });
+        html += `</div></div>`;
+
+        // PROJECTS & MILESTONES
+        projectsData.forEach((project, pIdx) => {
+            const projectStart = new Date(project.start_date);
+            const projectEnd = new Date(project.end_date);
+
+            // Only show projects that overlap with the year
+            if (!(projectEnd < yearStart || projectStart > yearEnd)) {
+                const displayStart = projectStart < yearStart ? yearStart : projectStart;
+                const displayEnd = projectEnd > yearEnd ? yearEnd : projectEnd;
+                const daysOffset = Math.ceil((displayStart - yearStart) / (1000 * 60 * 60 * 24));
+                const barWidthDays = Math.ceil((displayEnd - displayStart) / (1000 * 60 * 60 * 24)) + 1;
+                const barLeftPercent = (daysOffset / totalDays) * 100;
+                const barWidthPercent = (barWidthDays / totalDays) * 100;
+                const isSmall = barWidthPercent < 5;
+
+                // PROJECT ROW
+                html += `<div class="gantt-row project-row" data-project-id="yearly-${pIdx}" onclick="toggleMilestones('yearly-${pIdx}')">
+                    <div class="gantt-cell-name project-name" id="project-yearly-${pIdx}">
+                        📁 ${project.project_name}
+                        <span class="status-badge ${project.status.toLowerCase().replace(' ', '-')}">
+                            ${project.status}
+                        </span>
+                    </div>
+                    <div class="gantt-cells">
+                        <div style="position: relative; width: 100%; height: 100%;">
+                            <div class="gantt-bar-continuous ${project.status.toLowerCase().replace(' ', '-')}${isSmall ? ' small-bar' : ''}" 
+                                style="left: calc(${barLeftPercent}%); width: calc(${barWidthPercent}%); min-width: 40px;">
+                                <div class="bar-date-label bar-date-start">${displayStart.toLocaleDateString('en-GB')}</div>
+                                <div class="bar-content">
+                                    <span class="bar-percentage">${project.completion_percentage}%</span>
+                                </div>
+                                <div class="bar-date-label bar-date-end">${displayEnd.toLocaleDateString('en-GB')}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+                // MILESTONE ROWS
+                project.milestones.forEach((milestone) => {
+                    const mStart = new Date(milestone.start_date);
+                    const mEnd = new Date(milestone.end_date);
+
+                    // Only show milestones that overlap with the year
+                    if (!(mEnd < yearStart || mStart > yearEnd)) {
+                        const mDisplayStart = mStart < yearStart ? yearStart : mStart;
+                        const mDisplayEnd = mEnd > yearEnd ? yearEnd : mEnd;
+                        const mDaysOffset = Math.ceil((mDisplayStart - yearStart) / (1000 * 60 * 60 * 24));
+                        const mBarWidthDays = Math.ceil((mDisplayEnd - mDisplayStart) / (1000 * 60 * 60 * 24)) + 1;
+                        const mBarLeftPercent = (mDaysOffset / totalDays) * 100;
+                        const mBarWidthPercent = (mBarWidthDays / totalDays) * 100;
+                        const mIsSmall = mBarWidthPercent < 5;
+
+                        html += `<div class="gantt-row milestone milestone-row" data-parent-project="yearly-${pIdx}">
+                            <div class="gantt-cell-name">
+                                ${milestone.milestone_name}
+                                <span class="status-badge ${milestone.status.toLowerCase().replace(' ', '-')}">
+                                    ${milestone.status}
+                                </span>
+                            </div>
+                            <div class="gantt-cells">
+                                <div style="position: relative; width: 100%; height: 100%;">
+                                    <div class="gantt-bar-continuous ${milestone.status.toLowerCase().replace(' ', '-')}${mIsSmall ? ' small-bar' : ''}"
+                                        style="left: calc(${mBarLeftPercent}%); width: calc(${mBarWidthPercent}%); min-width: 40px;">
+                                        <div class="bar-date-label bar-date-start">${mDisplayStart.toLocaleDateString('en-GB')}</div>
+                                        <div class="bar-content">
+                                            <span class="bar-percentage">${milestone.priority}</span>
+                                        </div>
+                                        <div class="bar-date-label bar-date-end">${mDisplayEnd.toLocaleDateString('en-GB')}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                });
+            }
+        });
+
+        html += `</div>`;
+        document.getElementById('yearly-view').innerHTML = html;
+        attachBarHoverEventsYearly();
+    }
+
+    // Patch toggleMilestones to support yearly view
+    function toggleMilestones(projectId) {
+        const projectElement = document.getElementById('project-' + projectId);
+        if (projectElement) {
+            projectElement.classList.toggle('expanded');
+            document.querySelectorAll(`.milestone-row[data-parent-project="${projectId}"]`).forEach(row => {
+                row.classList.toggle('show');
+            });
+        }
     }
 
     function switchTab(tabName) {
@@ -956,6 +1331,8 @@
 
         if (tabName === 'monthly') {
             renderMonthlyView();
+        } else if (tabName === 'yearly') {
+            renderYearlyView();
         }
     }
 

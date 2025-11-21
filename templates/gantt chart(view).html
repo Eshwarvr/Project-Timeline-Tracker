@@ -1,0 +1,121 @@
+<!-- ===== PERFECT GANTT CHART WITH ACTUAL DATES ===== -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Milestones Timeline</h5>
+            </div>
+            <div class="card-body" style="padding: 20px; background: #f9f9f9;">
+                {% if project.milestones %}
+                <div style="overflow-x: auto; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                    <div style="display: flex;">
+                        <!-- LEFT: MILESTONE NAMES (Fixed width) -->
+                        <div style="width: 220px; flex-shrink: 0; border-right: 2px solid #007bff;">
+                            <!-- Header -->
+                            <div style="height: 50px; font-weight: bold; font-size: 14px; border-bottom: 2px solid #007bff; display: flex; align-items: center; padding: 0 15px; background: #e7f3ff; color: #0d6efd;">
+                                Milestone Name
+                            </div>
+                            <!-- Milestone rows -->
+                            {% for milestone in project.milestones %}
+                            <div style="height: 60px; border-bottom: 1px solid #ddd; display: flex; align-items: center; padding: 0 15px; font-weight: 600; font-size: 13px; background: #fafafa; overflow: hidden;">
+                                {{ milestone.milestone_name }}
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- RIGHT: TIMELINE (Scrollable) -->
+                        <div style="flex: 1; position: relative; display: flex; flex-direction: column; min-width: 500px;">
+                            {% set total_days = (project.end_date - project.start_date).days + 1 %}
+                            {% set today_day_num = ((today - project.start_date).days) + 1 %}
+
+                            <!-- DATE HEADER - ALL DAYS WITH TODAY MARKER -->
+                            <div style="display: flex; height: 50px; background: #e7f3ff; font-weight: bold; font-size: 10px; position: relative;">
+                                {% for day_num in range(total_days) %}
+                                    <div style="flex: 1; text-align: center; border-right: 1px solid #ccc; border-bottom: 2px solid #007bff;{% if day_num == total_days - 1 %}border-right: 2px solid #007bff;{% endif %} display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; color: #0d6efd; min-width: 50px; line-height: 1.2;">
+                                        <div>Day {{ day_num + 1 }}</div>
+                                        {% if day_num + 1 == today_day_num and today_day_num >= 1 and today_day_num <= total_days %}
+                                            <div style="color: #ff0000; font-weight: bold; font-size: 9px;">TODAY</div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- MILESTONE BARS - EXTENDS TO PROJECT END DATE -->
+                            {% set total_days = (project.end_date - project.start_date).days + 1 %}
+
+                            {% for milestone in project.milestones %}
+
+                                {% set milestone_duration = (milestone.end_date - milestone.start_date).days + 1 %}
+                                {% set days_from_start = (milestone.start_date - project.start_date).days %}
+                                
+                                {% set actual_status = milestone.status %}
+                                {% if today > milestone.end_date and actual_status != 'Completed' %}
+                                    {% set actual_status = 'Overdue' %}
+                                {% elif today < milestone.start_date and actual_status == 'In Progress' %}
+                                    {% set actual_status = 'Not Started' %}
+                                {% endif %}
+
+                                {% if actual_status == 'Completed' %}
+                                    {% set bar_color = '#28a745' %}
+                                {% elif actual_status == 'Overdue' %}
+                                    {% set bar_color = '#dc3545' %}
+                                {% elif milestone.priority == 'High' %}
+                                    {% set bar_color = '#ff6384' %}
+                                {% elif milestone.priority == 'Low' %}
+                                    {% set bar_color = '#4bc0c0' %}
+                                {% else %}
+                                    {% set bar_color = '#0d6efd' %}
+                                {% endif %}
+
+                                <div style="display: flex; height: 60px; background: #ffffff; align-items: center; position: relative; border-bottom: 1px solid #ddd;">
+                                    <!-- DRAW BAR CELL BY CELL FOR PERFECT ALIGNMENT -->
+                                    {% for day_num in range(total_days) %}
+                                        <div style="flex: 1; border-right: 1px solid #efefef; border-bottom: 1px solid #e0e0e0; height: 100%; min-width: 50px; position: relative; box-sizing: border-box;">
+                                            <!-- DRAW BAR SEGMENT IF THIS DAY IS IN MILESTONE RANGE -->
+                                            {% if day_num >= days_from_start and day_num < (days_from_start + milestone_duration) %}
+                                                <div style="position: absolute; 
+                                                            top: 12.5px; 
+                                                            left: {% if day_num == days_from_start %}3px{% else %}0{% endif %}; 
+                                                            right: {% if day_num == (days_from_start + milestone_duration - 1) %}3px{% else %}0{% endif %}; 
+                                                            height: 35px; 
+                                                            background-color: {{ bar_color }}; 
+                                                            {% if day_num == days_from_start %}border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-left: 2px solid {{ bar_color }};{% endif %}
+                                                            {% if day_num == (days_from_start + milestone_duration - 1) %}border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-right: 2px solid {{ bar_color }};{% endif %}
+                                                            border-top: 2px solid {{ bar_color }};
+                                                            border-bottom: 2px solid {{ bar_color }};
+                                                            display: flex; 
+                                                            align-items: center; 
+                                                            justify-content: center; 
+                                                            color: white; 
+                                                            font-weight: bold; 
+                                                            font-size: 11px; 
+                                                            opacity: 0.92; 
+                                                            box-shadow: 0 2px 6px rgba(0,0,0,0.2); 
+                                                            cursor: pointer;
+                                                            transition: opacity 0.2s, box-shadow 0.2s;"
+                                                    title="📌 {{ milestone.milestone_name }} | Start: {{ milestone.start_date.strftime('%d-%m-%Y') }} | End: {{ milestone.end_date.strftime('%d-%m-%Y') }} | Duration: {{ milestone_duration }} days | Status: {{ milestone.status }} | Priority: {{ milestone.priority }}"
+                                                    onmouseover="this.style.opacity='1'; this.style.boxShadow='0 4px 10px rgba(0,0,0,0.3)';"
+                                                    onmouseout="this.style.opacity='0.92'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.2)';">
+                                                    <!-- SHOW TEXT ONLY IN MIDDLE CELL -->
+                                                    {% if day_num == (days_from_start + (milestone_duration // 2)) %}
+                                                        {{ milestone_duration }} days
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">No Milestones To Display Timeline</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>

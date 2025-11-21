@@ -162,6 +162,7 @@ def add_project():
         # Convert to title case
         project_name = to_title_case(request.form['project_name'])
         client_name = to_title_case(request.form['client_name'])
+        # HTML date inputs submit YYYY-MM-DD; parse accordingly
         start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d').date()
         end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d').date()
         

@@ -325,7 +325,7 @@
         flex: 1 1 0%;
         position: relative;
         align-items: center;
-        background: linear-gradient(90deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+        /* background removed - set inline per row */
         min-width: 0;
         width: 100vw; /* Force full viewport width for shade */
         box-sizing: border-box;
@@ -668,10 +668,8 @@
 
 {% block content %}
 <div class="gantt-container">
-    <!-- Tooltip for hover -->
     <div class="gantt-bar-tooltip" id="ganttTooltip"></div>
 
-    <!-- Header Section -->
     <div class="gantt-header">
         <h1>📊 Project Gantt Chart</h1>
         <div class="gantt-stats">
@@ -686,7 +684,6 @@
         </div>
     </div>
 
-    <!-- Tab Navigation -->
     <div class="tab-container">
         <button class="tab-button active" onclick="switchTab('weekly')">
             📅 Weekly View
@@ -695,13 +692,11 @@
             📆 Monthly View
         </button>
         <button class="tab-button" onclick="switchTab('yearly')">
-            🗓️ Yearly View
+            📊 All Project View
         </button>
     </div>
 
-    <!-- Weekly View Tab -->
     <div id="weekly" class="tab-content active">
-        <!-- Month Selector for Weekly View -->
         <div class="month-selector">
             <label for="week-month-select">Select Month:</label>
             <select id="week-month-select" onchange="changeWeeklyMonth()">
@@ -742,9 +737,7 @@
         </div>
     </div>
 
-    <!-- Monthly View Tab -->
     <div id="monthly" class="tab-content">
-        <!-- Month Group Selector for Monthly View -->
         <div class="month-group-selector">
             <label for="month-group-select">Select Month Range:</label>
             <select id="month-group-select" onchange="renderMonthlyView()">
@@ -783,10 +776,8 @@
         </div>
     </div>
 
-    <!-- Yearly View Tab -->
     <div id="yearly" class="tab-content">
-        <!-- Year Selector for Yearly View -->
-        <div class="year-selector">
+        <div class="year-selector" style="display: none;">
             <button class="year-nav-btn" id="prev-year-btn" onclick="changeYear(-1)">&lt; Prev</button>
             <label id="year-label" style="margin: 0 10px;"></label>
             <button class="year-nav-btn" id="next-year-btn" onclick="changeYear(1)">Next &gt;</button>
@@ -1267,115 +1258,144 @@
     }
 
     function renderYearlyView() {
-        document.getElementById('year-label').textContent = selectedYear;
-        const months = Array.from({length: 12}, (_, i) => new Date(selectedYear, i, 1));
-        const yearStart = new Date(selectedYear, 0, 1);
-        const yearEnd = new Date(selectedYear, 11, 31);
-        const totalDays = Math.ceil((yearEnd - yearStart) / (1000 * 60 * 60 * 24)) + 1;
+        // Get all projects' date range for dynamic month headers
+        if (projectsData.length === 0) {
+            document.getElementById('yearly-view').innerHTML = '<div class="no-projects-year">No projects found</div>';
+            return;
+        }
+
+        // STEP 1: Find the earliest start date and latest end date across ALL projects
+        let rawEarliest = new Date(projectsData[0].start_date);
+        let rawLatest = new Date(projectsData[0].end_date);
+
+        projectsData.forEach(project => {
+            const pStart = new Date(project.start_date);
+            const pEnd = new Date(project.end_date);
+
+            // Find earliest start
+            if (pStart < rawEarliest) rawEarliest = pStart;
+
+            // Find latest end
+            if (pEnd > rawLatest) rawLatest = pEnd;
+        });
+
+        // STEP 2: Normalize Time Grid
+        // Start from the 1st day of the earliest month
+        let timelineStart = new Date(rawEarliest.getFullYear(), rawEarliest.getMonth(), 1);
+        
+        // End at the last day of the buffer month
+        let targetEndMonth = new Date(rawLatest.getFullYear(), rawLatest.getMonth() + 1, 1);
+        let timelineEnd = new Date(targetEndMonth.getFullYear(), targetEndMonth.getMonth() + 1, 0);
+
+        // STEP 3: Calculate total days for the full timeline
+        const totalDays = Math.ceil((timelineEnd - timelineStart) / (1000 * 60 * 60 * 24));
+
+        // STEP 4: Generate month headers
+        const months = [];
+        let currentDate = new Date(timelineStart);
+        
+        while (currentDate < timelineEnd) {
+            months.push(new Date(currentDate));
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
 
         let html = '';
         html += `<div class="gantt-full-view" style="position: relative;">`;
 
-        // HEADER ROW: 12 months
+        // Generate month header cells
         html += `<div class="gantt-header-row">`;
         html += `<div class="gantt-header-cell-name">Project / Milestone</div>`;
         html += `<div class="gantt-header-cells">`;
-        months.forEach((monthDate, idx) => {
-            const isCurrentMonth = monthDate.getMonth() === todayDate.getMonth() && monthDate.getFullYear() === todayDate.getFullYear();
+
+        months.forEach((monthDate) => {
+            const isCurrentMonth = monthDate.getMonth() === todayDate.getMonth() 
+                                 && monthDate.getFullYear() === todayDate.getFullYear();
             html += `<div class="gantt-header-cell ${isCurrentMonth ? 'current-month' : ''}">
                 <div class="period-label">${monthDate.toLocaleDateString('en-US', {month: 'short'})}</div>
                 <div class="date-label">${monthDate.getFullYear()}</div>
             </div>`;
         });
+
         html += `</div></div>`;
 
-        // PROJECTS & MILESTONES
-        let anyProject = false;
+        // STEP 5: Render projects and milestones
+        let rowIndex = 0;
         projectsData.forEach((project, pIdx) => {
             const projectStart = new Date(project.start_date);
             const projectEnd = new Date(project.end_date);
 
-            // Only show projects that overlap with the year
-            if (!(projectEnd < yearStart || projectStart > yearEnd)) {
-                anyProject = true;
-                const displayStart = projectStart < yearStart ? yearStart : projectStart;
-                const displayEnd = projectEnd > yearEnd ? yearEnd : projectEnd;
-                const daysOffset = Math.ceil((displayStart - yearStart) / (1000 * 60 * 60 * 24));
-                const barWidthDays = Math.ceil((displayEnd - displayStart) / (1000 * 60 * 60 * 24)) + 1;
-                const barLeftPercent = (daysOffset / totalDays) * 100;
-                const barWidthPercent = (barWidthDays / totalDays) * 100;
-                const isSmall = barWidthPercent < 5;
+            // Calculate position relative to timelineStart (1st of month)
+            const daysOffset = Math.ceil((projectStart - timelineStart) / (1000 * 60 * 60 * 24));
+            const barWidthDays = Math.ceil((projectEnd - projectStart) / (1000 * 60 * 60 * 24)) + 1;
+            const barLeftPercent = (daysOffset / totalDays) * 100;
+            const barWidthPercent = (barWidthDays / totalDays) * 100;
+            const isSmall = barWidthPercent < 5;
 
-                // PROJECT ROW
-                html += `<div class="gantt-row project-row" data-project-id="yearly-${pIdx}" onclick="toggleMilestones('yearly-${pIdx}')">
-                    <div class="gantt-cell-name project-name" id="project-yearly-${pIdx}">
-                        📁 ${project.project_name}
-                        <span class="status-badge ${project.status.toLowerCase().replace(' ', '-')}">
-                            ${project.status}
+            // Alternating row background
+            const rowBg = rowIndex % 2 === 0 ? 'rgba(248, 249, 250, 0.5)' : 'white';
+            rowIndex++;
+
+            // PROJECT ROW - Added width: max-content to extend shading
+            html += `<div class="gantt-row project-row" data-project-id="yearly-${pIdx}" onclick="toggleMilestones('yearly-${pIdx}')" style="background-color: ${rowBg}; min-width: 100%; width: max-content;">
+                <div class="gantt-cell-name project-name" id="project-yearly-${pIdx}" style="background-color: ${rowBg};">
+                    📁 ${project.project_name}
+                    <span class="status-badge ${project.status.toLowerCase().replace(' ', '-')}">
+                        ${project.status}
+                    </span>
+                </div>
+                <div class="gantt-cells" style="background-color: ${rowBg}; width: auto; min-width: 0; flex-grow: 1;">
+                    <div style="position: relative; width: 100%; height: 100%;">
+                        <div class="gantt-bar-continuous ${project.status.toLowerCase().replace(' ', '-')}${isSmall ? ' small-bar' : ''}" 
+                            style="left: calc(${barLeftPercent}%); width: calc(${barWidthPercent}%); min-width: 40px;">
+                            <div class="bar-date-label bar-date-start">${projectStart.toLocaleDateString('en-GB')}</div>
+                            <div class="bar-content">
+                                <span class="bar-percentage">${project.completion_percentage}%</span>
+                            </div>
+                            <div class="bar-date-label bar-date-end">${projectEnd.toLocaleDateString('en-GB')}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+            // MILESTONE ROWS - Added width: max-content to extend shading
+            project.milestones.forEach((milestone) => {
+                const mStart = new Date(milestone.start_date);
+                const mEnd = new Date(milestone.end_date);
+
+                const mDaysOffset = Math.ceil((mStart - timelineStart) / (1000 * 60 * 60 * 24));
+                const mBarWidthDays = Math.ceil((mEnd - mStart) / (1000 * 60 * 60 * 24)) + 1;
+                const mBarLeftPercent = (mDaysOffset / totalDays) * 100;
+                const mBarWidthPercent = (mBarWidthDays / totalDays) * 100;
+                const mIsSmall = mBarWidthPercent < 5;
+
+                html += `<div class="gantt-row milestone milestone-row" data-parent-project="yearly-${pIdx}" style="background-color: ${rowBg}; min-width: 100%; width: max-content;">
+                    <div class="gantt-cell-name" style="background-color: ${rowBg};">
+                        ${milestone.milestone_name}
+                        <span class="status-badge ${milestone.status.toLowerCase().replace(' ', '-')}">
+                            ${milestone.status}
                         </span>
                     </div>
-                    <div class="gantt-cells">
+                    <div class="gantt-cells" style="background-color: ${rowBg}; width: auto; min-width: 0; flex-grow: 1;">
                         <div style="position: relative; width: 100%; height: 100%;">
-                            <div class="gantt-bar-continuous ${project.status.toLowerCase().replace(' ', '-')}${isSmall ? ' small-bar' : ''}" 
-                                style="left: calc(${barLeftPercent}%); width: calc(${barWidthPercent}%); min-width: 40px;">
-                                <div class="bar-date-label bar-date-start">${displayStart.toLocaleDateString('en-GB')}</div>
+                            <div class="gantt-bar-continuous ${milestone.status.toLowerCase().replace(' ', '-')}${mIsSmall ? ' small-bar' : ''}"
+                                style="left: calc(${mBarLeftPercent}%); width: calc(${mBarWidthPercent}%); min-width: 40px;">
+                                <div class="bar-date-label bar-date-start">${mStart.toLocaleDateString('en-GB')}</div>
                                 <div class="bar-content">
-                                    <span class="bar-percentage">${project.completion_percentage}%</span>
+                                    <span class="bar-percentage">${milestone.priority}</span>
                                 </div>
-                                <div class="bar-date-label bar-date-end">${displayEnd.toLocaleDateString('en-GB')}</div>
+                                <div class="bar-date-label bar-date-end">${mEnd.toLocaleDateString('en-GB')}</div>
                             </div>
                         </div>
                     </div>
                 </div>`;
-
-                // MILESTONE ROWS
-                project.milestones.forEach((milestone) => {
-                    const mStart = new Date(milestone.start_date);
-                    const mEnd = new Date(milestone.end_date);
-
-                    // Only show milestones that overlap with the year
-                    if (!(mEnd < yearStart || mStart > yearEnd)) {
-                        const mDisplayStart = mStart < yearStart ? yearStart : mStart;
-                        const mDisplayEnd = mEnd > yearEnd ? yearEnd : mEnd;
-                        const mDaysOffset = Math.ceil((mDisplayStart - yearStart) / (1000 * 60 * 60 * 24));
-                        const mBarWidthDays = Math.ceil((mDisplayEnd - mDisplayStart) / (1000 * 60 * 60 * 24)) + 1;
-                        const mBarLeftPercent = (mDaysOffset / totalDays) * 100;
-                        const mBarWidthPercent = (mBarWidthDays / totalDays) * 100;
-                        const mIsSmall = mBarWidthPercent < 5;
-
-                        html += `<div class="gantt-row milestone milestone-row" data-parent-project="yearly-${pIdx}">
-                            <div class="gantt-cell-name">
-                                ${milestone.milestone_name}
-                                <span class="status-badge ${milestone.status.toLowerCase().replace(' ', '-')}">
-                                    ${milestone.status}
-                                </span>
-                            </div>
-                            <div class="gantt-cells">
-                                <div style="position: relative; width: 100%; height: 100%;">
-                                    <div class="gantt-bar-continuous ${milestone.status.toLowerCase().replace(' ', '-')}${mIsSmall ? ' small-bar' : ''}"
-                                        style="left: calc(${mBarLeftPercent}%); width: calc(${mBarWidthPercent}%); min-width: 40px;">
-                                        <div class="bar-date-label bar-date-start">${mDisplayStart.toLocaleDateString('en-GB')}</div>
-                                        <div class="bar-content">
-                                            <span class="bar-percentage">${milestone.priority}</span>
-                                        </div>
-                                        <div class="bar-date-label bar-date-end">${mDisplayEnd.toLocaleDateString('en-GB')}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>`;
-                    }
-                });
-            }
+            });
         });
-
-        if (!anyProject) {
-            html += `<div class="no-projects-year">No projects found for ${selectedYear}.</div>`;
-        }
 
         html += `</div>`;
         document.getElementById('yearly-view').innerHTML = html;
         attachBarHoverEventsYearly();
     }
+
 
     // Patch toggleMilestones to support yearly view
     function toggleMilestones(projectId) {
@@ -1394,7 +1414,10 @@
         document.getElementById(tabName).classList.add('active');
         event.target.classList.add('active');
 
-        if (tabName === 'monthly') {
+        if (tabName === 'weekly') {
+            const monthNum = parseInt(document.getElementById('week-month-select').value) || todayDate.getMonth() + 1;
+            renderWeeklyView(monthNum);
+        } else if (tabName === 'monthly') {
             renderMonthlyView();
         } else if (tabName === 'yearly') {
             renderYearlyView();
@@ -1415,8 +1438,10 @@
         });
     }
 
-    // Initial render
-    renderWeeklyView(todayDate.getMonth() + 1);
+    // Initial render - wait for DOM to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+        renderWeeklyView(todayDate.getMonth() + 1);
+    });
     document.getElementById('year-label').textContent = selectedYear;
 </script>
 {% endblock %}
